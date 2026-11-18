@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   Clock,
+  Compass,
   GraduationCap,
   HelpCircle,
   Info,
@@ -28,6 +29,10 @@ import type {
   PresidenteRD,
   ViewMode,
 } from '../../types/history';
+import {
+  searchNominatimRD,
+  type NominatimPlaceResult,
+} from '../../services/nominatimService';
 import AboutModal from './AboutModal';
 
 export type QuickExploreTopic =
@@ -71,6 +76,7 @@ export interface HeaderProps {
   onSelectRoute?: (route: HistoricalRoute) => void;
   onSelectEvent?: (evt: HistoricalEvent) => void;
   onSelectPresident?: (pres: PresidenteRD) => void;
+  onSelectGeographicPlace?: (lng: number, lat: number, label: string) => void;
 }
 
 export default function Header({
@@ -100,13 +106,46 @@ export default function Header({
   onSelectRoute,
   onSelectEvent,
   onSelectPresident,
+  onSelectGeographicPlace,
 }: HeaderProps) {
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [nominatimPlaces, setNominatimPlaces] = useState<NominatimPlaceResult[]>(
+    []
+  );
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
 
   const helpMenuRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
+
+  // 400ms Debounce + localStorage cached Nominatim (OpenStreetMap) query bounded to Dominican Republic
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 3) {
+      setNominatimPlaces([]);
+      setIsSearchingPlaces(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIsSearchingPlaces(true);
+      try {
+        const places = await searchNominatimRD(q, controller.signal);
+        setNominatimPlaces(places);
+      } catch {
+        // Ignore abort errors
+      } finally {
+        setIsSearchingPlaces(false);
+      }
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
@@ -182,14 +221,24 @@ export default function Header({
       routes: matchedRoutes,
       presidents: matchedPresidents,
       monuments: matchedMonuments,
+      places: nominatimPlaces,
       total:
         matchedEvents.length +
         matchedMilestones.length +
         matchedRoutes.length +
         matchedPresidents.length +
-        matchedMonuments.length,
+        matchedMonuments.length +
+        nominatimPlaces.length,
     };
-  }, [searchQuery, events, milestones, routes, presidents, colonialMonuments]);
+  }, [
+    searchQuery,
+    events,
+    milestones,
+    routes,
+    presidents,
+    colonialMonuments,
+    nominatimPlaces,
+  ]);
 
   const handleInicioClick = () => {
     setViewMode('map');
@@ -389,6 +438,44 @@ export default function Header({
                             </span>
                             <span className="font-mono-tabular text-[10px] text-[#C5A059] shrink-0">
                               {rt.properties.anio_inicio}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {(searchResults.places.length > 0 || isSearchingPlaces) && (
+                      <div className="pt-1 border-t border-[#C5A059]/15">
+                        <div className="px-2.5 py-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                          <span>Lugares en RD (OpenStreetMap / Nominatim)</span>
+                          {isSearchingPlaces && (
+                            <span className="text-[9px] font-mono text-[#A39E93] animate-pulse">
+                              Buscando...
+                            </span>
+                          )}
+                        </div>
+                        {searchResults.places.map((pl) => (
+                          <button
+                            key={pl.place_id}
+                            type="button"
+                            onClick={() => {
+                              onSelectGeographicPlace?.(
+                                pl.lng,
+                                pl.lat,
+                                pl.name
+                              );
+                              setSearchFocused(false);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-[#C5A059]/15 flex items-center justify-between gap-2 text-[#F4F1EA]"
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <Compass className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span className="truncate font-medium">
+                                {pl.display_name}
+                              </span>
+                            </span>
+                            <span className="font-mono-tabular text-[9px] text-[#A39E93] shrink-0">
+                              {pl.lat.toFixed(2)}, {pl.lng.toFixed(2)}
                             </span>
                           </button>
                         ))}

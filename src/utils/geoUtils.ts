@@ -9,11 +9,6 @@ import type {
   TerritorialPolygonFeature,
 } from '../types/history';
 
-export const PROVINCES_GEOJSON_URL =
-  'https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09592ced973a3448cf66b6100b741b64c0d/releaseData/gbOpen/DOM/ADM1/geoBoundaries-DOM-ADM1_simplified.geojson';
-
-const SESSION_CACHE_KEY = 'cronomapa_rd_provinces_geojson_v1';
-
 const PROVINCE_NAME_ALIASES: Record<string, string> = {
   'la estrelleta': 'elias pina',
   'el seybo': 'el seibo',
@@ -34,122 +29,12 @@ export function normalizeProvinceName(name: string): string {
 
 const localFallbackTyped = localProvincesData as unknown as ProvinceCollection;
 
-const LOCAL_META_BY_KEY: Record<string, ProvinceFeature['properties']> = (() => {
-  const map: Record<string, ProvinceFeature['properties']> = {};
-  for (const feat of localFallbackTyped.features) {
-    map[normalizeProvinceName(feat.properties.nombre)] = feat.properties;
-  }
-  return map;
-})();
-
-function enrichProvinceCollection(raw: GeoJSON.FeatureCollection): ProvinceCollection {
-  const features: ProvinceFeature[] = raw.features
-    .filter(
-      (f): f is GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> =>
-        Boolean(f.geometry) &&
-        (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'),
-    )
-    .map((f, index) => {
-      const props = (f.properties ?? {}) as Record<string, unknown>;
-      const rawName = String(
-        props.nombre ?? props.shapeName ?? props.NAME_1 ?? `Provincia ${index + 1}`,
-      );
-      const normKey = normalizeProvinceName(rawName);
-      const meta = LOCAL_META_BY_KEY[normKey];
-
-      return {
-        type: 'Feature',
-        geometry: {
-          type: f.geometry.type,
-          coordinates: f.geometry.coordinates as
-            | [number, number][][]
-            | [number, number][][][],
-        },
-        properties: {
-          codigo: meta?.codigo ?? String(index + 1).padStart(2, '0'),
-          nombre: meta?.nombre ?? rawName,
-          region: meta?.region ?? 'República Dominicana',
-          cabecera: meta?.cabecera ?? rawName,
-          shapeName: String(props.shapeName ?? rawName),
-        },
-      };
-    });
-
-  return {
-    type: 'FeatureCollection',
-    name: 'division_politica_rd_geojson',
-    features,
-  };
-}
-
-let inMemoryProvincesCache: ProvinceCollection | null = null;
-
 export function getBundledRealProvinces(): ProvinceCollection {
   return localFallbackTyped;
 }
 
 export async function fetchRealProvinceGeoJSON(): Promise<ProvinceCollection> {
-  if (inMemoryProvincesCache) {
-    return inMemoryProvincesCache;
-  }
-
-  if (typeof window !== 'undefined') {
-    try {
-      const cached =
-        window.localStorage?.getItem(SESSION_CACHE_KEY) ||
-        window.sessionStorage?.getItem(SESSION_CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached) as ProvinceCollection;
-        if (parsed?.features?.length >= 30) {
-          inMemoryProvincesCache = parsed;
-          return parsed;
-        }
-      }
-    } catch {
-      // Ignore storage access/quota issues
-    }
-  }
-
-  const controller = new AbortController();
-  const timeoutId =
-    typeof window !== 'undefined'
-      ? window.setTimeout(() => controller.abort(), 7000)
-      : setTimeout(() => controller.abort(), 7000);
-
-  try {
-    const response = await fetch(PROVINCES_GEOJSON_URL, {
-      mode: 'cors',
-      cache: 'force-cache',
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const raw = (await response.json()) as GeoJSON.FeatureCollection;
-    const enriched = enrichProvinceCollection(raw);
-    if (enriched.features.length >= 30) {
-      inMemoryProvincesCache = enriched;
-      if (typeof window !== 'undefined') {
-        try {
-          const serialized = JSON.stringify(enriched);
-          try {
-            window.localStorage?.setItem(SESSION_CACHE_KEY, serialized);
-          } catch {
-            window.sessionStorage?.setItem(SESSION_CACHE_KEY, serialized);
-          }
-        } catch {
-          // Ignore storage quota issues
-        }
-      }
-      return enriched;
-    }
-  } catch {
-    // Clean fallback to bundled real GeoJSON borders
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  inMemoryProvincesCache = localFallbackTyped;
+  // 100% Offline-First: Bundled local static GeoJSON for instant zero-latency rendering
   return localFallbackTyped;
 }
 

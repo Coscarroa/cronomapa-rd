@@ -1,6 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
-import { AlertTriangle, Layers, X } from 'lucide-react';
+import { Layers, X } from 'lucide-react';
 import { CronoMapaProvider, useCronoMapa } from './context/CronoMapaContext';
 import HistoricalTimelineView from './components/timeline/HistoricalTimelineView';
 import BeforeAfterCompare from './components/map/BeforeAfterCompare';
@@ -31,11 +30,6 @@ const LazyMinerdWorksheetGenerator = lazy(
 const LazyClassroomTriviaModal = lazy(
   () => import('./components/ui/ClassroomTriviaModal.jsx'),
 );
-
-const GOOGLE_MAPS_API_KEY = (
-  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? ''
-).trim();
-const HAS_MAPS_API_KEY = GOOGLE_MAPS_API_KEY.length > 0;
 
 function CronoMapaShell() {
   const {
@@ -371,6 +365,11 @@ function CronoMapaShell() {
         onSelectRoute={handleSelectRouteFromHeader}
         onSelectEvent={handleSelectEventFromSearch}
         onSelectPresident={handleSelectPresidentFromSearch}
+        onSelectGeographicPlace={(lng, lat) => {
+          setCompareMode(false);
+          setViewMode('map');
+          flyToCoords([lng, lat], 13);
+        }}
       />
 
       <main className="relative flex-1 min-h-0 overflow-hidden bg-[#0D0F12]">
@@ -379,31 +378,15 @@ function CronoMapaShell() {
             <div
               className={`h-full w-full transition-all duration-700 ease-in-out ${activeEpoch.filterClass}`}
             >
-              {HAS_MAPS_API_KEY ? (
-                <Suspense
-                  fallback={
-                    <div className="h-full w-full flex items-center justify-center bg-[#0D0F12] text-[#D4AF37] font-display text-lg">
-                      Cargando lienzo cartográfico de La Española...
-                    </div>
-                  }
-                >
-                  <DynamicMapView />
-                </Suspense>
-              ) : (
-                <div className="h-full w-full flex items-center justify-center p-6 bg-[#0D0F12]">
-                  <div className="max-w-md rounded-xl border border-[#C5A059]/40 bg-[#161920]/95 p-6 text-center shadow-2xl space-y-2">
-                    <h2 className="font-display text-lg font-semibold text-[#D4AF37]">
-                      Clave de Google Maps Platform no configurada
-                    </h2>
-                    <p className="text-xs text-[#A39E93] leading-relaxed">
-                      Configura{' '}
-                      <code className="text-[#F4F1EA]">VITE_GOOGLE_MAPS_API_KEY</code> para
-                      visualizar el lienzo cartográfico interactivo. Mientras tanto, puedes usar la
-                      Línea de Tiempo Histórica y Comparar Antes vs. Hoy.
-                    </p>
+              <Suspense
+                fallback={
+                  <div className="h-full w-full flex items-center justify-center bg-[#0D0F12] text-[#D4AF37] font-display text-lg">
+                    Cargando lienzo cartográfico de La Española...
                   </div>
-                </div>
-              )}
+                }
+              >
+                <DynamicMapView />
+              </Suspense>
             </div>
 
             {/* MÓDULO A: Lienzo de Anotación Táctil (HTML5 Canvas) cargado bajo demanda con React.lazy */}
@@ -617,67 +600,13 @@ function CronoMapaShell() {
 }
 
 export default function App() {
-  const [quotaError, setQuotaError] = useState(false);
-
-  useEffect(() => {
-    const onQuota = () => setQuotaError(true);
-    window.addEventListener('gmp-quota-exceeded', onQuota);
-    return () => window.removeEventListener('gmp-quota-exceeded', onQuota);
-  }, []);
-
-  const shellContent = (
+  return (
     <div className="relative h-screen w-screen flex flex-col overflow-hidden bg-[#0D0F12]">
-      {quotaError && (
-        <div
-          role="alert"
-          className="sticky top-0 z-[1200] bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm flex items-center justify-between gap-3 shadow-sm shrink-0"
-        >
-          <div className="flex items-center gap-2 min-w-0 mx-auto">
-            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
-            <span className="truncate">
-              Google Maps Platform quota reached. If you are the app owner, visit{' '}
-              <a
-                href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-semibold text-amber-950 hover:text-amber-800"
-              >
-                maps developer site
-              </a>{' '}
-              for instructions to update your account.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setQuotaError(false)}
-            aria-label="Ocultar aviso"
-            className="p-1 hover:bg-amber-200/60 rounded text-amber-900 shrink-0"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       <div className="flex-1 min-h-0">
         <CronoMapaProvider>
           <CronoMapaShell />
         </CronoMapaProvider>
       </div>
     </div>
-  );
-
-  if (!HAS_MAPS_API_KEY) {
-    return shellContent;
-  }
-
-  return (
-    <APIProvider
-      apiKey={GOOGLE_MAPS_API_KEY}
-      libraries={['marker', 'maps']}
-      language="es"
-      region="DO"
-    >
-      {shellContent}
-    </APIProvider>
   );
 }

@@ -1,617 +1,151 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import L from 'leaflet';
 import {
-  APILoadingStatus,
-  AdvancedMarker,
-  Map as GoogleMapView,
-  useApiLoadingStatus,
+  MapContainer,
+  GeoJSON,
+  ImageOverlay,
+  Marker,
+  Tooltip,
   useMap,
-  useMapsLibrary,
-} from '@vis.gl/react-google-maps';
+  useMapEvents,
+} from 'react-leaflet';
+import capasTerritoriales from '../../data/capas_territoriales.json';
 import {
   ANTIQUE_OVERLAYS,
-  HISPANIOLA_MAX_BOUNDS,
   MAP_INITIAL_CENTER,
   MAP_INITIAL_ZOOM,
-  MAP_MAX_ZOOM,
-  MAP_MIN_ZOOM,
 } from '../../data/layersConfig';
-import capasTerritoriales from '../../data/capas_territoriales.json';
-import historicaData from '../../data/division_historica_rd.json';
 import { useCronoMapa } from '../../context/CronoMapaContext';
-import { getProvinceCentroid, normalizeProvinceName } from '../../utils/geoUtils';
-import { getGoogleProvinceStyle, getGoogleTerritorialStyle } from '../../utils/mapStyles';
-import { COLONIAL_MONUMENTS } from '../../data/colonialMonumentsData.js';
-import RealisticBaseLayers, { getGoogleMapTypeId } from './RealisticBaseLayers';
-import ColonialMonumentsLayer from './ColonialMonumentsLayer';
-import HistoricalMarkersLayer from './HistoricalMarkersLayer';
-import HistoricalRoutesLayer from './HistoricalRoutesLayer';
-import PresidentPortrait from '../ui/PresidentPortrait';
+import {
+  getLeafletProvinceStyle,
+  getLeafletTerritorialStyle,
+} from '../../utils/mapStyles';
 import type {
   DossierHito,
-  EventCategory,
   HistoricalEvent,
-  HistoricalLayer,
-  LayerId,
-  PresidenteRD,
   ProvinceFeature,
-  TerritorialLayerKind,
   TerritorialPolygonCollection,
   TerritorialPolygonFeature,
 } from '../../types/history';
+import RealisticBaseLayers from './RealisticBaseLayers';
+import HistoricalMarkersLayer from './HistoricalMarkersLayer';
+import ColonialMonumentsLayer from './ColonialMonumentsLayer';
+import HistoricalRoutesLayer from './HistoricalRoutesLayer';
 
 export interface FlyToTarget {
-  bounds?: [[number, number], [number, number]];
-  center?: [number, number];
+  center?: [number, number]; // [lat, lng]
   zoom?: number;
   zoomDelta?: number;
+  bounds?: [[number, number], [number, number]]; // [[south, west], [north, east]]
   nonce: number;
 }
 
-const CATEGORY_COLORS: Record<EventCategory, string> = {
-  'Política/Constitucional': '#1D3557',
-  'Batalla/Militar': '#9B2226',
-  'Fundación/Territorio': '#C5A059',
-  'Derechos/Sociedad': '#2A6F97',
-};
-
-function MapCameraAndEvents({
-  flyToTarget,
-  onCursorMove,
-  onZoomChange,
-}: {
-  flyToTarget: FlyToTarget | null;
-  onCursorMove: (lat: number, lng: number) => void;
-  onZoomChange: (zoom: number) => void;
-}) {
+const MapCameraAndEvents: React.FC = () => {
   const map = useMap();
-  const onCursorMoveRef = useRef(onCursorMove);
-  const onZoomChangeRef = useRef(onZoomChange);
+  const { flyToTarget, setCursorCoords, setZoom, setSelectedFeature } =
+    useCronoMapa();
 
+  // Keep Leaflet container dimensions fresh on sidebar/drawer open/close
   useEffect(() => {
-    onCursorMoveRef.current = onCursorMove;
-  }, [onCursorMove]);
+    const container = map.getContainer();
+    const timer = window.setTimeout(() => {
+      map.invalidateSize();
+    }, 120);
 
-  useEffect(() => {
-    onZoomChangeRef.current = onZoomChange;
-  }, [onZoomChange]);
-
-  useEffect(() => {
-    if (!map || typeof map.addListener !== 'function') return;
-
-    let rafId: number | null = null;
-    let pendingCoords: { lat: number; lng: number } | null = null;
-    const rawListeners: Array<google.maps.MapsEventListener | undefined> = [];
-
-    try {
-      rawListeners.push(
-        map.addListener('mousemove', (e: google.maps.MapMouseEvent) => {
-          if (!e?.latLng) return;
-          pendingCoords = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-          if (rafId === null) {
-            rafId = window.requestAnimationFrame(() => {
-              rafId = null;
-              if (pendingCoords) {
-                onCursorMoveRef.current(pendingCoords.lat, pendingCoords.lng);
-              }
-            });
-          }
-        }),
-        map.addListener('zoom_changed', () => {
-          const z = typeof map.getZoom === 'function' ? map.getZoom() : undefined;
-          if (typeof z === 'number') onZoomChangeRef.current(z);
-        }),
-      );
-    } catch {
-      // Ignore listener attachment errors if Maps SDK failed authentication
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      observer = new ResizeObserver(() => {
+        map.invalidateSize({ animate: false });
+      });
+      observer.observe(container);
     }
 
-    const listeners = rawListeners.filter(
-      (l): l is google.maps.MapsEventListener => Boolean(l && typeof l.remove === 'function'),
-    );
-
     return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      listeners.forEach((l) => l?.remove?.());
+      window.clearTimeout(timer);
+      observer?.disconnect();
     };
   }, [map]);
 
+  useMapEvents({
+    mousemove(e) {
+      setCursorCoords({
+        lat: Number(e.latlng.lat.toFixed(4)),
+        lng: Number(e.latlng.lng.toFixed(4)),
+      });
+    },
+    zoomend() {
+      setZoom(map.getZoom());
+    },
+    click() {
+      setSelectedFeature(null);
+    },
+  });
+
   useEffect(() => {
-    if (!map || !flyToTarget) return;
-    try {
-      if (typeof flyToTarget.zoomDelta === 'number' && typeof map.getZoom === 'function') {
-        const currentZoom = map.getZoom() ?? MAP_INITIAL_ZOOM;
-        const nextZoom = Math.max(
-          MAP_MIN_ZOOM,
-          Math.min(MAP_MAX_ZOOM, currentZoom + flyToTarget.zoomDelta),
-        );
-        map.setZoom?.(nextZoom);
-      } else if (flyToTarget.bounds && typeof map.fitBounds === 'function') {
-        const [[south, west], [north, east]] = flyToTarget.bounds;
-        map.fitBounds({ north, south, east, west }, 36);
-      } else if (flyToTarget.center) {
-        if (typeof map.panTo === 'function') {
-          map.panTo({ lat: flyToTarget.center[0], lng: flyToTarget.center[1] });
-        }
-        if (typeof flyToTarget.zoom === 'number' && typeof map.setZoom === 'function') {
-          map.setZoom(flyToTarget.zoom);
-        }
-      }
-    } catch {
-      // Ignore camera operations if map is not fully initialized
+    if (!flyToTarget) return;
+    if (flyToTarget.center) {
+      const [lat, lng] = flyToTarget.center;
+      map.flyTo([lat, lng], flyToTarget.zoom ?? map.getZoom(), {
+        duration: 0.85,
+      });
+    } else if (flyToTarget.bounds) {
+      map.flyToBounds(flyToTarget.bounds, {
+        padding: [36, 36],
+        duration: 0.85,
+      });
+    } else if (typeof flyToTarget.zoomDelta === 'number') {
+      map.setZoom(map.getZoom() + flyToTarget.zoomDelta);
+    } else if (typeof flyToTarget.zoom === 'number') {
+      map.setZoom(flyToTarget.zoom);
     }
-  }, [map, flyToTarget]);
+  }, [flyToTarget, map]);
 
   return null;
+};
+
+const EVENT_CATEGORY_COLORS: Record<string, string> = {
+  'Política/Constitucional': '#D4AF37',
+  'Batalla/Militar': '#E63946',
+  'Fundación/Territorio': '#2A9D8F',
+  'Derechos/Sociedad': '#3B82F6',
+};
+
+function createEventDivIcon(
+  evt: HistoricalEvent,
+  isSelected: boolean
+): L.DivIcon {
+  const color = EVENT_CATEGORY_COLORS[evt.properties.categoria] ?? '#D4AF37';
+  const size = isSelected ? 30 : 22;
+  const html = `
+    <div style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:#161920;border:2px solid ${color};box-shadow:0 0 12px ${color}80;cursor:pointer;transition:transform 0.2s ease;">
+      <div style="width:${isSelected ? 10 : 7}px;height:${isSelected ? 10 : 7}px;border-radius:9999px;background:${color};"></div>
+    </div>
+  `;
+  return L.divIcon({
+    className: 'leaflet-div-icon',
+    html,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
 }
 
-function VintageGroundOverlayLayer({
-  imageUrl,
-  fallbackUrl,
-  bounds,
-  opacity,
-}: {
-  imageUrl: string | null;
-  fallbackUrl?: string;
-  bounds: google.maps.LatLngBoundsLiteral | null;
-  opacity: number;
-}) {
-  const map = useMap();
-  const mapsLib = useMapsLibrary('maps');
-  const overlayRef = useRef<google.maps.GroundOverlay | null>(null);
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(imageUrl);
-
-  useEffect(() => {
-    if (!imageUrl) {
-      setResolvedUrl(null);
-      return;
-    }
-    let cancelled = false;
-    setResolvedUrl(imageUrl);
-    if (fallbackUrl && fallbackUrl !== imageUrl) {
-      const probe = new Image();
-      probe.referrerPolicy = 'no-referrer';
-      probe.onerror = () => {
-        if (!cancelled) setResolvedUrl(fallbackUrl);
-      };
-      probe.src = imageUrl;
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [imageUrl, fallbackUrl]);
-
-  useEffect(() => {
-    if (overlayRef.current) {
-      overlayRef.current.setMap(null);
-      overlayRef.current = null;
-    }
-    if (!map || !mapsLib || typeof mapsLib.GroundOverlay !== 'function' || !resolvedUrl || !bounds) {
-      return;
-    }
-
-    const overlay = new mapsLib.GroundOverlay(resolvedUrl, bounds, {
-      opacity,
-      clickable: false,
-    });
-    overlay.setMap(map);
-    overlayRef.current = overlay;
-
-    return () => {
-      overlay.setMap(null);
-      if (overlayRef.current === overlay) {
-        overlayRef.current = null;
-      }
-    };
-  }, [map, mapsLib, resolvedUrl, bounds]);
-
-  useEffect(() => {
-    if (overlayRef.current) {
-      overlayRef.current.setOpacity(opacity);
-    }
-  }, [opacity]);
-
-  return null;
-}
-
-function GeoJsonDataLayerRenderer() {
-  const map = useMap();
-  const mapsLib = useMapsLibrary('maps');
-  const {
-    activeBaseMapId,
-    layers,
-    realProvinces,
-    cacicazgos1492,
-    provincias1844,
-    selectedFeature,
-    setSelectedFeature,
-    allPresidents,
-  } = useCronoMapa();
-
-  const [hoveredTooltip, setHoveredTooltip] = useState<{
-    title: string;
-    subtitle: string;
-    accent?: string;
-  } | null>(null);
-
-  const layerDict = useMemo(() => {
-    const dict = {} as Record<LayerId, HistoricalLayer>;
-    for (const l of layers) dict[l.id] = l;
-    return dict;
-  }, [layers]);
-
-  const presidentsByNormProvince = useMemo(() => {
-    const grouped: Record<string, PresidenteRD[]> = {};
-    for (const pres of allPresidents) {
-      const k = normalizeProvinceName(pres.provincia_nacimiento);
-      if (!grouped[k]) grouped[k] = [];
-      grouped[k].push(pres);
-    }
-    return grouped;
-  }, [allPresidents]);
-
-  const provinciasLayer = layerDict.provincias_actuales;
-  const cacicazgosLayer = layerDict.cacicazgos_1492;
-  const osorioLayer = layerDict.despoblacion_osorio_1606;
-  const aranjuezLayer = layerDict.tratado_aranjuez_1777;
-  const unificacionLayer = layerDict.unificacion_haitiana_1822;
-  const provincias1844Layer = layerDict.provincias_1844;
-  const presidentesLayer = layerDict.presidentes_provincia;
-
-  const territorialAll = capasTerritoriales as unknown as TerritorialPolygonCollection;
-  const aranjuezLine = (
-    historicaData as unknown as {
-      frontera_aranjuez_1777: GeoJSON.FeatureCollection;
-    }
-  ).frontera_aranjuez_1777;
-
-  // Lookup dictionaries for click handlers
-  const provinceByCode = useMemo(() => {
-    const dict: Record<string, ProvinceFeature> = {};
-    for (const f of realProvinces.features) {
-      dict[f.properties.codigo] = f;
-    }
-    return dict;
-  }, [realProvinces]);
-
-  const activeTerritorialFeatures = useMemo(() => {
-    const list: TerritorialPolygonFeature[] = [];
-    if (cacicazgosLayer?.visible) list.push(...cacicazgos1492.features);
-    if (provincias1844Layer?.visible) list.push(...provincias1844.features);
-
-    const staticKinds: TerritorialLayerKind[] = [];
-    if (osorioLayer?.visible) staticKinds.push('despoblacion_osorio_1606');
-    if (aranjuezLayer?.visible) staticKinds.push('tratado_aranjuez_1777');
-    if (unificacionLayer?.visible) staticKinds.push('unificacion_haitiana_1822');
-
-    if (staticKinds.length > 0) {
-      for (const f of territorialAll.features) {
-        if (staticKinds.includes(f.properties.grupo_territorial)) {
-          list.push(f);
-        }
-      }
-    }
-    return list;
-  }, [
-    cacicazgosLayer?.visible,
-    provincias1844Layer?.visible,
-    osorioLayer?.visible,
-    aranjuezLayer?.visible,
-    unificacionLayer?.visible,
-    cacicazgos1492,
-    provincias1844,
-    territorialAll,
-  ]);
-
-  const territorialById = useMemo(() => {
-    const dict: Record<string, TerritorialPolygonFeature> = {};
-    for (const f of activeTerritorialFeatures) {
-      dict[f.properties.id] = f;
-    }
-    return dict;
-  }, [activeTerritorialFeatures]);
-
-  // Refs to keep Data layer listeners stable without recreating layers on state updates
-  const provinceByCodeRef = useRef(provinceByCode);
-  const presidentsByNormProvinceRef = useRef(presidentsByNormProvince);
-  const presidentesVisibleRef = useRef(Boolean(presidentesLayer?.visible));
-  const territorialByIdRef = useRef(territorialById);
-
-  useEffect(() => {
-    provinceByCodeRef.current = provinceByCode;
-  }, [provinceByCode]);
-
-  useEffect(() => {
-    presidentsByNormProvinceRef.current = presidentsByNormProvince;
-  }, [presidentsByNormProvince]);
-
-  useEffect(() => {
-    presidentesVisibleRef.current = Boolean(presidentesLayer?.visible);
-  }, [presidentesLayer?.visible]);
-
-  useEffect(() => {
-    territorialByIdRef.current = territorialById;
-  }, [territorialById]);
-
-  // 1. Modern Real GeoJSON Provinces Data Layer (Module 1)
-  const provDataRef = useRef<google.maps.Data | null>(null);
-  useEffect(() => {
-    if (!map || !mapsLib || typeof mapsLib.Data !== 'function') return;
-    const dataLayer = new mapsLib.Data();
-    provDataRef.current = dataLayer;
-
-    const clickListener = dataLayer.addListener?.('click', (e: google.maps.Data.MouseEvent) => {
-      const code = String(e.feature.getProperty('codigo') ?? '');
-      const typed = provinceByCodeRef.current[code];
-      if (!typed) return;
-      const presList =
-        presidentsByNormProvinceRef.current[normalizeProvinceName(typed.properties.nombre)] ?? [];
-      if (presidentesVisibleRef.current && presList.length > 0) {
-        setSelectedFeature({
-          kind: 'province_presidents',
-          provinceName: typed.properties.nombre,
-          region: typed.properties.region,
-          cabecera: typed.properties.cabecera,
-          presidentes: presList,
-        });
-      } else {
-        setSelectedFeature({ kind: 'province', data: typed });
-      }
-    });
-
-    const overListener = dataLayer.addListener?.('mouseover', (e: google.maps.Data.MouseEvent) => {
-      const nombre = String(e.feature.getProperty('nombre') ?? '');
-      const region = String(e.feature.getProperty('region') ?? '');
-      const cabecera = String(e.feature.getProperty('cabecera') ?? '');
-      const presCount =
-        presidentsByNormProvinceRef.current[normalizeProvinceName(nombre)]?.length ?? 0;
-
-      dataLayer.overrideStyle(e.feature, {
-        strokeWeight: 2.5,
-        strokeColor: '#D4AF37',
-        fillOpacity: 0.48,
-        zIndex: 25,
-      });
-
-      setHoveredTooltip({
-        title: nombre,
-        subtitle: `${region} · Cab. ${cabecera}`,
-        accent:
-          presCount > 0
-            ? `${presCount} ${presCount === 1 ? 'presidente nacido aquí' : 'presidentes nacidos aquí'}`
-            : 'Clic para ficha provincial',
-      });
-    });
-
-    const outListener = dataLayer.addListener?.('mouseout', () => {
-      dataLayer.revertStyle();
-      setHoveredTooltip(null);
-    });
-
-    return () => {
-      clickListener?.remove?.();
-      overListener?.remove?.();
-      outListener?.remove?.();
-      dataLayer.setMap(null);
-      provDataRef.current = null;
-    };
-  }, [map, mapsLib, setSelectedFeature]);
-
-  useEffect(() => {
-    const dataLayer = provDataRef.current;
-    if (!dataLayer || !map) return;
-
-    dataLayer.forEach((f) => dataLayer.remove(f));
-    if (!provinciasLayer?.visible) {
-      dataLayer.setMap(null);
-      return;
-    }
-
-    dataLayer.addGeoJson(realProvinces as unknown as object);
-    dataLayer.setMap(map);
-
-    const selectedCode =
-      selectedFeature?.kind === 'province' ? selectedFeature.data.properties.codigo : null;
-    const selectedPresProv =
-      selectedFeature?.kind === 'province_presidents'
-        ? normalizeProvinceName(selectedFeature.provinceName)
-        : null;
-
-    dataLayer.setStyle((feature) => {
-      const codigo = String(feature.getProperty('codigo') ?? '');
-      const nombre = String(feature.getProperty('nombre') ?? '');
-      const region = String(feature.getProperty('region') ?? '');
-      const norm = normalizeProvinceName(nombre);
-      const presCount = presidentsByNormProvince[norm]?.length ?? 0;
-      const isSelected =
-        codigo === selectedCode || (selectedPresProv !== null && norm === selectedPresProv);
-
-      return getGoogleProvinceStyle({
-        regionName: region,
-        baseMapId: activeBaseMapId,
-        layerOpacity: provinciasLayer.opacidad,
-        presidentsLayerVisible: Boolean(presidentesLayer?.visible),
-        presidentCount: presCount,
-        isSelected,
-      });
-    });
-  }, [
-    map,
-    realProvinces,
-    provinciasLayer?.visible,
-    provinciasLayer?.opacidad,
-    activeBaseMapId,
-    presidentesLayer?.visible,
-    presidentsByNormProvince,
-    selectedFeature,
-  ]);
-
-  // 2. Turf-merged Macro-Territories & Historical Boundaries Data Layer (Module 2)
-  const terrDataRef = useRef<google.maps.Data | null>(null);
-  useEffect(() => {
-    if (!map || !mapsLib || typeof mapsLib.Data !== 'function') return;
-    const dataLayer = new mapsLib.Data();
-    terrDataRef.current = dataLayer;
-
-    const clickListener = dataLayer.addListener?.('click', (e: google.maps.Data.MouseEvent) => {
-      const id = String(e.feature.getProperty('id') ?? '');
-      const typed = territorialByIdRef.current[id];
-      if (typed) {
-        setSelectedFeature({ kind: 'territorial', data: typed });
-      }
-    });
-
-    const overListener = dataLayer.addListener?.('mouseover', (e: google.maps.Data.MouseEvent) => {
-      const id = String(e.feature.getProperty('id') ?? '');
-      const typed = territorialByIdRef.current[id];
-      if (!typed) return;
-      dataLayer.overrideStyle(e.feature, {
-        strokeWeight: 2.8,
-        strokeColor: '#F4F1EA',
-        fillOpacity: 0.48,
-        zIndex: 35,
-      });
-      setHoveredTooltip({
-        title: typed.properties.nombre_capa,
-        subtitle: `${typed.properties.subtitulo} · ${typed.properties.anio_inicio}–${typed.properties.anio_fin}`,
-        accent: typed.properties.liderazgo ?? 'Clic para análisis territorial',
-      });
-    });
-
-    const outListener = dataLayer.addListener?.('mouseout', () => {
-      dataLayer.revertStyle();
-      setHoveredTooltip(null);
-    });
-
-    return () => {
-      clickListener?.remove?.();
-      overListener?.remove?.();
-      outListener?.remove?.();
-      dataLayer.setMap(null);
-      terrDataRef.current = null;
-    };
-  }, [map, mapsLib, setSelectedFeature]);
-
-  useEffect(() => {
-    const dataLayer = terrDataRef.current;
-    if (!dataLayer || !map) return;
-
-    dataLayer.forEach((f) => dataLayer.remove(f));
-    if (activeTerritorialFeatures.length === 0 && !aranjuezLayer?.visible) {
-      dataLayer.setMap(null);
-      return;
-    }
-
-    if (activeTerritorialFeatures.length > 0) {
-      dataLayer.addGeoJson({
-        type: 'FeatureCollection',
-        features: activeTerritorialFeatures,
-      });
-    }
-    if (aranjuezLayer?.visible) {
-      dataLayer.addGeoJson(aranjuezLine as unknown as object);
-    }
-
-    dataLayer.setMap(map);
-
-    const selectedTerrId =
-      selectedFeature?.kind === 'territorial' ? selectedFeature.data.properties.id : null;
-
-    dataLayer.setStyle((feature) => {
-      const id = String(feature.getProperty('id') ?? '');
-      const typed = territorialById[id];
-      if (!typed) {
-        // Aranjuez border polyline feature
-        return {
-          strokeColor: '#D4AF37',
-          strokeWeight: 3.5,
-          strokeOpacity: 0.9,
-          clickable: false,
-          zIndex: 40,
-        };
-      }
-      const group = typed.properties.grupo_territorial;
-      const layerOpacity = layerDict[group]?.opacidad ?? 0.72;
-      return getGoogleTerritorialStyle(
-        typed,
-        activeBaseMapId,
-        layerOpacity,
-        id === selectedTerrId,
-      );
-    });
-  }, [
-    map,
-    activeTerritorialFeatures,
-    territorialById,
-    aranjuezLayer?.visible,
-    aranjuezLine,
-    layerDict,
-    activeBaseMapId,
-    selectedFeature,
-  ]);
-
-  // Playfair Display Serif centroid labels for Turf-fused 1492 & 1844 macro-territories
-  const centroidLabels = useMemo(() => {
-    const labels: {
-      id: string;
-      nombre: string;
-      lat: number;
-      lng: number;
-      color: string;
-      feature: TerritorialPolygonFeature;
-    }[] = [];
-    const macroList = [
-      ...(cacicazgosLayer?.visible ? cacicazgos1492.features : []),
-      ...(provincias1844Layer?.visible ? provincias1844.features : []),
-    ];
-    for (const f of macroList) {
-      const pt = f.properties.centroid;
-      if (!pt) continue;
-      labels.push({
-        id: f.properties.id,
-        nombre: f.properties.nombre_capa.replace(/\s*\(1844\)/, ''),
-        lng: pt[0],
-        lat: pt[1],
-        color: f.properties.color,
-        feature: f,
-      });
-    }
-    return labels;
-  }, [cacicazgosLayer?.visible, provincias1844Layer?.visible, cacicazgos1492, provincias1844]);
-
-  return (
-    <>
-      {centroidLabels.map((lbl) => (
-        <AdvancedMarker
-          key={`macro-lbl-${lbl.id}`}
-          position={{ lat: lbl.lat, lng: lbl.lng }}
-          zIndex={420}
-          onClick={() => setSelectedFeature({ kind: 'territorial', data: lbl.feature })}
-        >
-          <div className="pdi-scalable-label pointer-events-auto cursor-pointer px-2.5 py-1 rounded-md bg-[#0D0F12]/80 backdrop-blur-md border border-[#C5A059]/45 shadow-lg text-center hover:border-[#D4AF37] transition-all duration-200">
-            <span className="font-display text-xs sm:text-[13px] font-semibold tracking-wide text-[#F4F1EA] drop-shadow">
-              {lbl.nombre}
-            </span>
-          </div>
-        </AdvancedMarker>
-      ))}
-
-      {hoveredTooltip && (
-        <div className="pdi-scalable-label pointer-events-none absolute top-16 left-1/2 -translate-x-1/2 z-[880] px-3.5 py-2 rounded-lg bg-[#161920]/95 backdrop-blur-xl border border-[#C5A059]/45 shadow-[0_14px_34px_rgba(0,0,0,0.75)] text-center max-w-xs transition-all duration-200">
-          <div className="font-display text-xs font-semibold text-[#F4F1EA]">
-            {hoveredTooltip.title}
-          </div>
-          <div className="text-[11px] text-[#A39E93]">{hoveredTooltip.subtitle}</div>
-          {hoveredTooltip.accent && (
-            <div className="text-[11px] font-medium text-[#D4AF37] mt-0.5">
-              {hoveredTooltip.accent}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
+function createDossierDivIcon(
+  hito: DossierHito,
+  isSelected: boolean
+): L.DivIcon {
+  const color = hito.regimen === 'trujillo' ? '#9B2226' : '#2563EB';
+  const size = isSelected ? 30 : 24;
+  const html = `
+    <div style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:6px;transform:rotate(45deg);background:${color};border:1.5px solid #F4F1EA;box-shadow:0 3px 10px rgba(0,0,0,0.85);cursor:pointer;">
+      <span style="transform:rotate(-45deg);font-family:monospace;font-size:9px;font-weight:700;color:#F4F1EA;">${hito.regimen === 'trujillo' ? 'T' : 'B'}</span>
+    </div>
+  `;
+  return L.divIcon({
+    className: 'leaflet-div-icon',
+    html,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
 }
 
 export default function MapView() {
@@ -619,345 +153,382 @@ export default function MapView() {
     activeBaseMapId,
     reliefIntensity,
     layers,
-    selectedFeature,
-    setSelectedFeature,
-    setCursorCoords,
-    setZoom,
-    flyToTarget,
-    flyToCoords,
     realProvinces,
+    cacicazgos1492,
+    provincias1844,
     filteredMilestones,
     showMilestones,
-    jumpToMilestone,
     filteredColonialMonuments,
-    jumpToColonialMonument,
+    filteredRoutes,
+    filteredEvents,
+    filteredDossierHitos,
+    allPresidents,
+    selectedFeature,
+    setSelectedFeature,
     activeAnimatedRoute,
     isRoutePlaying,
     routeProgress,
-    routeResetNonce,
+    routeStopIndex,
     setRouteProgress,
     setRouteStopIndex,
-    toggleRoutePlay,
+    setIsRoutePlaying,
     jumpToRouteStop,
     activeVintageMap,
     vintageOpacity,
-    filteredEvents,
-    filteredRoutes,
-    filteredDossierHitos,
-    allPresidents,
-    portraitsLoading,
   } = useCronoMapa();
 
-  const layerDict = useMemo(() => {
-    const dict = {} as Record<LayerId, HistoricalLayer>;
-    for (const layer of layers) {
-      dict[layer.id] = layer;
-    }
-    return dict;
-  }, [layers]);
-
-  const presidentesLayer = layerDict.presidentes_provincia;
-  const dossiersLayer = layerDict.dossiers_regimenes;
-  const rutasLayer = layerDict.rutas_historicas;
-  const mapaAntiguoLayer = layerDict.mapa_antiguo_espaniola;
-  const planoColonialLayer = layerDict.plano_ciudad_colonial;
-  const eventosLayer = layerDict.eventos_historicos;
-  const monumentosLayer = layerDict.monumentos_coloniales;
-
-  const presidentsByNormProvince = useMemo(() => {
-    const grouped: Record<string, PresidenteRD[]> = {};
-    for (const pres of allPresidents) {
-      const k = normalizeProvinceName(pres.provincia_nacimiento);
-      if (!grouped[k]) grouped[k] = [];
-      grouped[k].push(pres);
-    }
-    return grouped;
-  }, [allPresidents]);
-
-  const provincePresidentBadges = useMemo(() => {
-    return realProvinces.features
-      .map((prov) => {
-        const list = presidentsByNormProvince[normalizeProvinceName(prov.properties.nombre)] ?? [];
-        if (list.length === 0) return null;
-        return {
-          province: prov,
-          center: getProvinceCentroid(prov),
-          presidentes: list,
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [realProvinces, presidentsByNormProvince]);
-
-  const activeGroundOverlay = useMemo(() => {
-    if (activeVintageMap) {
-      return {
-        url: activeVintageMap.imageUrl,
-        fallbackUrl: activeVintageMap.fallbackUrl,
-        bounds: activeVintageMap.bounds,
-        opacity: vintageOpacity,
-      };
-    }
-    if (planoColonialLayer?.visible) {
-      const [[s, w], [n, e]] = ANTIQUE_OVERLAYS.ciudad_colonial_1650.bounds;
-      return {
-        url: ANTIQUE_OVERLAYS.ciudad_colonial_1650.url,
-        fallbackUrl: ANTIQUE_OVERLAYS.ciudad_colonial_1650.url,
-        bounds: { north: n, south: s, east: e, west: w },
-        opacity: planoColonialLayer.opacidad,
-      };
-    }
-    if (mapaAntiguoLayer?.visible) {
-      const [[s, w], [n, e]] = ANTIQUE_OVERLAYS.espaniola_1560.bounds;
-      return {
-        url: ANTIQUE_OVERLAYS.espaniola_1560.url,
-        fallbackUrl: ANTIQUE_OVERLAYS.espaniola_1560.url,
-        bounds: { north: n, south: s, east: e, west: w },
-        opacity: mapaAntiguoLayer.opacidad,
-      };
-    }
-    return null;
-  }, [
-    activeVintageMap,
-    vintageOpacity,
-    planoColonialLayer?.visible,
-    planoColonialLayer?.opacidad,
-    mapaAntiguoLayer?.visible,
-    mapaAntiguoLayer?.opacidad,
-  ]);
-
-  const apiStatus = useApiLoadingStatus();
-
-  const handleCursorMove = useCallback(
-    (lat: number, lng: number) => {
-      setCursorCoords({ lat, lng });
-    },
-    [setCursorCoords],
+  const [hoveredProvinceName, setHoveredProvinceName] = useState<string | null>(
+    null
   );
 
-  useEffect(() => {
-    if (apiStatus === APILoadingStatus.AUTH_FAILURE || apiStatus === APILoadingStatus.FAILED) {
-      window.dispatchEvent(new CustomEvent('gmp-quota-exceeded'));
+  const layerMap = useMemo(() => {
+    const map = new Map<string, { visible: boolean; opacidad: number }>();
+    for (const l of layers) {
+      map.set(l.id, { visible: l.visible, opacidad: l.opacidad });
     }
-  }, [apiStatus]);
+    return map;
+  }, [layers]);
 
-  const [[southBound, westBound], [northBound, eastBound]] = HISPANIOLA_MAX_BOUNDS;
-  const isMapAuthOrLoadFailed =
-    apiStatus === APILoadingStatus.AUTH_FAILURE || apiStatus === APILoadingStatus.FAILED;
+  const presidentsByProvince = useMemo(() => {
+    const map = new Map<string, typeof allPresidents>();
+    for (const pres of allPresidents) {
+      const list = map.get(pres.provincia_nacimiento) ?? [];
+      list.push(pres);
+      map.set(pres.provincia_nacimiento, list);
+    }
+    return map;
+  }, [allPresidents]);
+
+  // Combine active territorial polygon layers (1492, 1606, 1777, 1822, 1844)
+  const activeTerritorialFeatures = useMemo(() => {
+    const rawStatic =
+      capasTerritoriales as unknown as TerritorialPolygonCollection;
+    const list: Array<{
+      feature: TerritorialPolygonFeature;
+      opacity: number;
+    }> = [];
+
+    const cacicazgosLayer = layerMap.get('cacicazgos_1492');
+    if (cacicazgosLayer?.visible) {
+      for (const f of cacicazgos1492.features) {
+        list.push({ feature: f, opacity: cacicazgosLayer.opacidad });
+      }
+    }
+
+    const provincias1844Layer = layerMap.get('provincias_1844');
+    if (provincias1844Layer?.visible) {
+      for (const f of provincias1844.features) {
+        list.push({ feature: f, opacity: provincias1844Layer.opacidad });
+      }
+    }
+
+    for (const f of rawStatic.features) {
+      const group = f.properties.grupo_territorial;
+      if (group === 'cacicazgos_1492' || group === 'provincias_1844') continue;
+      const conf = layerMap.get(group);
+      if (conf?.visible) {
+        list.push({ feature: f, opacity: conf.opacidad });
+      }
+    }
+
+    return list;
+  }, [layerMap, cacicazgos1492, provincias1844]);
+
+  const provincesLayerConf = layerMap.get('provincias_actuales');
+  const presidentsLayerConf = layerMap.get('presidentes_provincia');
+  const dossiersLayerConf = layerMap.get('dossiers_regimenes');
+  const routesLayerConf = layerMap.get('rutas_historicas');
+  const eventsLayerConf = layerMap.get('eventos_historicos');
+  const monumentsLayerConf = layerMap.get('monumentos_coloniales');
+  const oldHispaniolaConf = layerMap.get('mapa_antiguo_espaniola');
+  const oldColonialPlanConf = layerMap.get('plano_ciudad_colonial');
+
+  // Filter out general events that overlap with our 16 core milestones
+  const nonOverlappingEvents = useMemo(() => {
+    if (!eventsLayerConf?.visible) return [];
+    return filteredEvents.filter((ev) => {
+      const [lng, lat] = ev.geometry.coordinates;
+      return !filteredMilestones.some(
+        (m) =>
+          Math.abs(m.lat - lat) < 0.015 &&
+          Math.abs(m.lng - lng) < 0.015 &&
+          Math.abs(m.year - ev.properties.anio) <= 5
+      );
+    });
+  }, [filteredEvents, filteredMilestones, eventsLayerConf?.visible]);
+
+  const selectedMilestoneId =
+    selectedFeature?.kind === 'milestone' ? selectedFeature.data.id : null;
+  const selectedMonumentId =
+    selectedFeature?.kind === 'colonial_monument'
+      ? selectedFeature.data.id
+      : null;
+  const selectedRouteId =
+    selectedFeature?.kind === 'route'
+      ? selectedFeature.data.properties.id
+      : null;
 
   return (
-    <div className="relative h-full w-full bg-[#0D0F12]">
-      {isMapAuthOrLoadFailed ? (
-        <div className="h-full w-full flex items-center justify-center p-6 bg-[#0D0F12]">
-          <div className="max-w-md rounded-xl border border-[#C5A059]/40 bg-[#161920]/95 p-6 text-center shadow-2xl space-y-2">
-            <h2 className="font-display text-lg font-semibold text-[#D4AF37]">
-              Mapa base temporalmente no disponible
-            </h2>
-            <p className="text-xs text-[#A39E93] leading-relaxed">
-              No se pudo autenticar la sesión de Google Maps Platform. Puedes seguir explorando la
-              Línea de Tiempo Histórica y la vista Comparar Antes vs. Hoy desde la barra superior.
-            </p>
-          </div>
-        </div>
-      ) : (
-      <GoogleMapView
-        defaultCenter={{ lat: MAP_INITIAL_CENTER[0], lng: MAP_INITIAL_CENTER[1] }}
-        defaultZoom={MAP_INITIAL_ZOOM}
-        minZoom={MAP_MIN_ZOOM}
-        maxZoom={MAP_MAX_ZOOM}
-        mapTypeId={getGoogleMapTypeId(activeBaseMapId)}
-        mapId="DEMO_MAP_ID"
-        colorScheme="DARK"
-        gestureHandling="greedy"
+    <div
+      id="cronomapa-map-canvas"
+      className="relative w-full h-full bg-[#0D0F12] select-none overflow-hidden"
+    >
+      <MapContainer
+        center={MAP_INITIAL_CENTER}
+        zoom={MAP_INITIAL_ZOOM}
+        minZoom={6}
+        maxZoom={18}
         zoomControl={false}
-        mapTypeControl={false}
-        streetViewControl={false}
-        fullscreenControl={false}
-        restriction={{
-          latLngBounds: {
-            north: northBound,
-            south: southBound,
-            east: eastBound,
-            west: westBound,
-          },
-          strictBounds: false,
-        }}
-        internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-        className="h-full w-full"
+        attributionControl={true}
+        preferCanvas={true}
+        className="w-full h-full"
       >
-        <MapCameraAndEvents
-          flyToTarget={flyToTarget}
-          onCursorMove={handleCursorMove}
-          onZoomChange={setZoom}
+        <MapCameraAndEvents />
+
+        {/* 1. 100% Free & Open-Source Base Tile Layers */}
+        <RealisticBaseLayers
+          baseMapId={activeBaseMapId}
+          reliefIntensity={reliefIntensity}
         />
 
-        <RealisticBaseLayers baseMapId={activeBaseMapId} reliefIntensity={reliefIntensity} />
+        {/* 2. Layer-Based Vintage Overlays (1560 Hispaniola / 1650 Santo Domingo) */}
+        {oldHispaniolaConf?.visible && ANTIQUE_OVERLAYS.espaniola_1560 && (
+          <ImageOverlay
+            url={ANTIQUE_OVERLAYS.espaniola_1560.url}
+            bounds={ANTIQUE_OVERLAYS.espaniola_1560.bounds}
+            opacity={oldHispaniolaConf.opacidad}
+            zIndex={240}
+          />
+        )}
+        {oldColonialPlanConf?.visible && ANTIQUE_OVERLAYS.ciudad_colonial_1650 && (
+          <ImageOverlay
+            url={ANTIQUE_OVERLAYS.ciudad_colonial_1650.url}
+            bounds={ANTIQUE_OVERLAYS.ciudad_colonial_1650.bounds}
+            opacity={oldColonialPlanConf.opacidad}
+            zIndex={245}
+          />
+        )}
 
-        {/* Módulo 5: Calco Histórico (GroundOverlay) */}
-        <VintageGroundOverlayLayer
-          imageUrl={activeGroundOverlay?.url ?? null}
-          fallbackUrl={activeGroundOverlay?.fallbackUrl}
-          bounds={activeGroundOverlay?.bounds ?? null}
-          opacity={activeGroundOverlay?.opacity ?? 0.72}
-        />
+        {/* 3. Gallery Vintage Overlay */}
+        {activeVintageMap && (
+          <ImageOverlay
+            key={activeVintageMap.id}
+            url={activeVintageMap.imageUrl || activeVintageMap.fallbackUrl}
+            bounds={[
+              [activeVintageMap.bounds.south, activeVintageMap.bounds.west],
+              [activeVintageMap.bounds.north, activeVintageMap.bounds.east],
+            ]}
+            opacity={vintageOpacity}
+            zIndex={250}
+          />
+        )}
 
-        {/* Módulos 1 & 2: Fronteras Reales GeoJSON + Fusión Turf.js 1492 & 1844 */}
-        <GeoJsonDataLayerRenderer />
+        {/* 4. Historical Territorial Macro-Polygons (1492, 1606, 1777, 1822, 1844) */}
+        {activeTerritorialFeatures.map(({ feature, opacity }) => {
+          const isSelected =
+            selectedFeature?.kind === 'territorial' &&
+            selectedFeature.data.properties.id === feature.properties.id;
 
-        {/* Capa Geopolítica: Presidentes por Provincia con Retrato + Contador */}
-        {presidentesLayer?.visible &&
-          provincePresidentBadges.map(({ province, center, presidentes }) => {
+          return (
+            <GeoJSON
+              key={`terr-${feature.properties.id}-${opacity}-${isSelected}`}
+              data={feature as unknown as GeoJSON.GeoJsonObject}
+              style={() =>
+                getLeafletTerritorialStyle(
+                  feature,
+                  activeBaseMapId,
+                  opacity,
+                  isSelected
+                )
+              }
+              onEachFeature={(_feat, layer) => {
+                layer.on({
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                    setSelectedFeature({ kind: 'territorial', data: feature });
+                  },
+                });
+              }}
+            />
+          );
+        })}
+
+        {/* 5. Local Static 32 Dominican Provinces GeoJSON */}
+        {provincesLayerConf?.visible &&
+          realProvinces.features.map((provFeature: ProvinceFeature) => {
+            const provName = provFeature.properties.nombre;
+            const presList = presidentsByProvince.get(provName) ?? [];
             const isSelected =
-              selectedFeature?.kind === 'province_presidents' &&
-              normalizeProvinceName(selectedFeature.provinceName) ===
-                normalizeProvinceName(province.properties.nombre);
-            const lead = presidentes.find((p) => p.foto_url) ?? presidentes[0];
+              (selectedFeature?.kind === 'province' &&
+                selectedFeature.data.properties.nombre === provName) ||
+              (selectedFeature?.kind === 'province_presidents' &&
+                selectedFeature.provinceName === provName);
+            const isHovered = hoveredProvinceName === provName;
 
             return (
-              <AdvancedMarker
-                key={`pres-badge-${province.properties.codigo}`}
-                position={{ lat: center[0], lng: center[1] }}
-                zIndex={isSelected ? 780 : 520}
-                title={`${province.properties.nombre}: ${presidentes.length} presidente(s)`}
-                onClick={() =>
-                  setSelectedFeature({
-                    kind: 'province_presidents',
-                    provinceName: province.properties.nombre,
-                    region: province.properties.region,
-                    cabecera: province.properties.cabecera,
-                    presidentes,
+              <GeoJSON
+                key={`prov-${provFeature.properties.codigo}-${isSelected}-${isHovered}-${presidentsLayerConf?.visible}`}
+                data={provFeature as unknown as GeoJSON.GeoJsonObject}
+                style={() =>
+                  getLeafletProvinceStyle({
+                    regionName: provFeature.properties.region,
+                    baseMapId: activeBaseMapId,
+                    layerOpacity: provincesLayerConf.opacidad,
+                    presidentsLayerVisible: Boolean(
+                      presidentsLayerConf?.visible
+                    ),
+                    presidentCount: presList.length,
+                    isSelected,
+                    isHovered,
                   })
                 }
-              >
-                <div
-                  className="relative w-9 h-9 cursor-pointer transition-transform hover:scale-110"
-                  style={{ opacity: presidentesLayer.opacidad }}
-                >
-                  <PresidentPortrait
-                    name={lead.nombre}
-                    fotoUrl={lead.foto_url}
-                    size="xs"
-                    shape="circle"
-                    isLoading={portraitsLoading}
-                    interactive={false}
-                    className={`border-2 shadow-[0_3px_10px_rgba(0,0,0,0.6)] ${
-                      isSelected ? 'border-[#D4AF37]' : 'border-[#F4F1EA]'
-                    }`}
-                  />
-                  <span
-                    className="absolute -top-1 -right-0.5 z-20 min-w-[18px] h-[18px] px-1 rounded-full border border-[#F4F1EA] font-mono-tabular text-[10px] font-bold flex items-center justify-center shadow"
-                    style={{
-                      backgroundColor: isSelected ? '#9B2226' : '#1D3557',
-                      color: '#F4F1EA',
-                    }}
-                  >
-                    {presidentes.length}
-                  </span>
-                </div>
-              </AdvancedMarker>
+                onEachFeature={(_feat, layer) => {
+                  layer.on({
+                    mouseover: () => setHoveredProvinceName(provName),
+                    mouseout: () =>
+                      setHoveredProvinceName((prev) =>
+                        prev === provName ? null : prev
+                      ),
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      if (presidentsLayerConf?.visible && presList.length > 0) {
+                        setSelectedFeature({
+                          kind: 'province_presidents',
+                          provinceName: provName,
+                          region: provFeature.properties.region,
+                          cabecera: provFeature.properties.cabecera,
+                          presidentes: presList,
+                        });
+                      } else {
+                        setSelectedFeature({
+                          kind: 'province',
+                          data: provFeature,
+                        });
+                      }
+                    },
+                  });
+                }}
+              />
             );
           })}
 
-        {/* Dossiers Especiales: Trujillo (1930-1961) y Balaguer (1960-1996) */}
-        {dossiersLayer?.visible &&
-          filteredDossierHitos.map((hito: DossierHito) => {
-            const [lng, lat] = hito.coordenadas;
-            const isSelected =
-              selectedFeature?.kind === 'dossier_hito' && selectedFeature.data.id === hito.id;
-            const bg = hito.regimen === 'trujillo' ? '#9B2226' : '#1D3557';
-
-            return (
-              <AdvancedMarker
-                key={hito.id}
-                position={{ lat, lng }}
-                zIndex={isSelected ? 820 : 540}
-                title={`${hito.anio} · ${hito.titulo}`}
-                onClick={() => setSelectedFeature({ kind: 'dossier_hito', data: hito })}
-              >
-                <div
-                  className={`rounded-full border-2 border-[#F4F1EA] cursor-pointer shadow-lg transition-transform ${
-                    isSelected ? 'w-5 h-5 scale-110' : 'w-4 h-4 hover:scale-125'
-                  }`}
-                  style={{ backgroundColor: bg, opacity: dossiersLayer.opacidad }}
-                />
-              </AdvancedMarker>
-            );
-          })}
-
-        {/* Hechos Históricos Generales (eventos_rd.json) */}
-        {eventosLayer?.visible &&
-          filteredEvents.map((evt: HistoricalEvent) => {
-            const [lng, lat] = evt.geometry.coordinates;
-            const isSelected =
-              selectedFeature?.kind === 'event' &&
-              selectedFeature.data.properties.id === evt.properties.id;
-            const bg = CATEGORY_COLORS[evt.properties.categoria] ?? '#1D3557';
-
-            return (
-              <AdvancedMarker
-                key={evt.properties.id}
-                position={{ lat, lng }}
-                zIndex={isSelected ? 810 : 480}
-                title={`${evt.properties.anio} · ${evt.properties.titulo}`}
-                onClick={() => setSelectedFeature({ kind: 'event', data: evt })}
-              >
-                <div
-                  className={`rounded-full border cursor-pointer transition-transform shadow-md flex items-center justify-center ${
-                    isSelected
-                      ? 'w-5 h-5 border-[#D4AF37] ring-2 ring-[#D4AF37]/40 scale-110'
-                      : 'w-3.5 h-3.5 border-[#F4F1EA]/90 hover:scale-125'
-                  }`}
-                  style={{ backgroundColor: bg, opacity: eventosLayer.opacidad }}
-                />
-              </AdvancedMarker>
-            );
-          })}
-
-        {/* Módulo 3: Hitos y Batallas Históricas Pulsantes */}
-        <HistoricalMarkersLayer
-          milestones={filteredMilestones}
-          visible={showMilestones}
-          selectedMilestoneId={
-            selectedFeature?.kind === 'milestone' ? selectedFeature.data.id : null
-          }
-          onSelectMilestone={jumpToMilestone}
-        />
-
-        {/* Monumentos y Sitios Coloniales (Pines Bronce Dorado + Wikipedia) */}
-        <ColonialMonumentsLayer
-          monuments={
-            filteredColonialMonuments ?? (COLONIAL_MONUMENTS as unknown as typeof filteredColonialMonuments)
-          }
-          visible={Boolean(monumentosLayer?.visible)}
-          opacity={monumentosLayer?.opacidad ?? 1}
-          selectedMonumentId={
-            selectedFeature?.kind === 'colonial_monument' ? selectedFeature.data.id : null
-          }
-          onSelectMonument={jumpToColonialMonument}
-        />
-
-        {/* Módulo 4: Rutas Históricas Animadas y Estáticas */}
+        {/* 6. Historical & Animated Routes Layer (3 Traced Routes + Step-by-Step Player) */}
         <HistoricalRoutesLayer
           staticRoutes={filteredRoutes}
-          staticRoutesVisible={Boolean(rutasLayer?.visible)}
-          staticOpacity={rutasLayer?.opacidad ?? 0.9}
-          selectedStaticRouteId={
-            selectedFeature?.kind === 'route' ? selectedFeature.data.properties.id : null
+          staticRoutesVisible={Boolean(routesLayerConf?.visible)}
+          staticRoutesOpacity={routesLayerConf?.opacidad ?? 0.9}
+          selectedRouteId={selectedRouteId}
+          onSelectStaticRoute={(route) =>
+            setSelectedFeature({ kind: 'route', data: route })
           }
-          onSelectStaticRoute={(route) => setSelectedFeature({ kind: 'route', data: route })}
-          onSelectStaticWaypoint={(_route, wp) => flyToCoords(wp.coordenadas, 11)}
           activeAnimatedRoute={activeAnimatedRoute}
-          isPlaying={isRoutePlaying}
+          isRoutePlaying={isRoutePlaying}
           routeProgress={routeProgress}
-          resetNonce={routeResetNonce}
-          onProgressChange={setRouteProgress}
-          onStopIndexChange={setRouteStopIndex}
-          onPlaybackComplete={() => {
-            if (isRoutePlaying) toggleRoutePlay();
-          }}
-          onSelectStop={jumpToRouteStop}
+          routeStopIndex={routeStopIndex}
+          onUpdateProgress={setRouteProgress}
+          onUpdateStopIndex={setRouteStopIndex}
+          onFinishPlaying={() => setIsRoutePlaying(false)}
+          onSelectRouteStop={jumpToRouteStop}
         />
-      </GoogleMapView>
-      )}
+
+        {/* 7. 16 Key Historical Milestones Layer */}
+        {showMilestones && (
+          <HistoricalMarkersLayer
+            milestones={filteredMilestones}
+            selectedMilestoneId={selectedMilestoneId}
+            onSelectMilestone={(milestone) =>
+              setSelectedFeature({ kind: 'milestone', data: milestone })
+            }
+          />
+        )}
+
+        {/* 8. Colonial Monuments UNESCO Layer */}
+        <ColonialMonumentsLayer
+          monuments={filteredColonialMonuments}
+          selectedMonumentId={selectedMonumentId}
+          onSelectMonument={(monument) =>
+            setSelectedFeature({ kind: 'colonial_monument', data: monument })
+          }
+          visible={Boolean(monumentsLayerConf?.visible)}
+        />
+
+        {/* 9. Dossiers de Regímenes (Trujillo & Balaguer) */}
+        {dossiersLayerConf?.visible &&
+          filteredDossierHitos.map((hito) => {
+            const isSelected =
+              selectedFeature?.kind === 'dossier_hito' &&
+              selectedFeature.data.id === hito.id;
+            const [lng, lat] = hito.coordenadas;
+
+            return (
+              <Marker
+                key={hito.id}
+                position={[lat, lng]}
+                icon={createDossierDivIcon(hito, isSelected)}
+                zIndexOffset={isSelected ? 720 : 480}
+                eventHandlers={{
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                    setSelectedFeature({ kind: 'dossier_hito', data: hito });
+                  },
+                }}
+              >
+                <Tooltip
+                  direction="top"
+                  offset={[0, -14]}
+                  opacity={1}
+                  className="!bg-transparent !border-0 !shadow-none !p-0"
+                >
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[#0D0F12]/95 border border-[#C5A059]/50 text-[10px] font-mono text-[#F4F1EA] whitespace-nowrap shadow-xl">
+                    <span className="text-[#D4AF37] font-bold">
+                      {hito.anio}
+                    </span>{' '}
+                    • {hito.titulo}
+                  </div>
+                </Tooltip>
+              </Marker>
+            );
+          })}
+
+        {/* 10. Secondary Historical Events Markers */}
+        {nonOverlappingEvents.map((evt) => {
+          const isSelected =
+            selectedFeature?.kind === 'event' &&
+            selectedFeature.data.properties.id === evt.properties.id;
+          const [lng, lat] = evt.geometry.coordinates;
+
+          return (
+            <Marker
+              key={evt.properties.id}
+              position={[lat, lng]}
+              icon={createEventDivIcon(evt, isSelected)}
+              zIndexOffset={isSelected ? 700 : 410}
+              eventHandlers={{
+                click: (e) => {
+                  L.DomEvent.stopPropagation(e.originalEvent);
+                  setSelectedFeature({ kind: 'event', data: evt });
+                },
+              }}
+            >
+              <Tooltip
+                direction="top"
+                offset={[0, -12]}
+                opacity={1}
+                className="!bg-transparent !border-0 !shadow-none !p-0"
+              >
+                <div className="px-2 py-1 rounded bg-[#0D0F12]/95 border border-[#C5A059]/50 text-[10px] font-mono text-[#F4F1EA] whitespace-nowrap shadow-xl">
+                  <span className="text-[#D4AF37] font-semibold">
+                    {evt.properties.anio}
+                  </span>{' '}
+                  • {evt.properties.titulo}
+                </div>
+              </Tooltip>
+            </Marker>
+          );
+        })}
+      </MapContainer>
     </div>
   );
 }
+
+export { MapView };

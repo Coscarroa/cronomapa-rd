@@ -138,6 +138,7 @@ interface CronoMapaContextValue {
   animatedRoutes: AnimatedHistoricalRoute[];
   activeAnimatedRoute: AnimatedHistoricalRoute | null;
   isRoutePlaying: boolean;
+  setIsRoutePlaying: (playing: boolean) => void;
   routeProgress: number; // 0..1
   routeStopIndex: number;
   routeResetNonce: number;
@@ -908,6 +909,7 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
       animatedRoutes: ANIMATED_HISTORICAL_ROUTES,
       activeAnimatedRoute,
       isRoutePlaying,
+      setIsRoutePlaying,
       routeProgress,
       routeStopIndex,
       routeResetNonce,
