@@ -1,0 +1,273 @@
+{
+  "type": "FeatureCollection",
+  "name": "capas_territoriales",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-72.85, 19.95],
+          [-71.65, 19.92],
+          [-71.22, 19.48],
+          [-71.75, 19.05],
+          [-72.65, 19.08],
+          [-73.38, 19.65],
+          [-72.85, 19.95]
+        ]]
+      },
+      "properties": {
+        "id": "cac-marien",
+        "nombre_capa": "Cacicazgo de Marién",
+        "subtitulo": "Cacique Guacanagarix",
+        "grupo_territorial": "cacicazgos_1492",
+        "anio_inicio": 1492,
+        "anio_fin": 1504,
+        "color": "#1D4ED8",
+        "descripcion_territorial": "Demarcación taína del noroeste de La Española, desde el Cabo San Nicolás hasta la cuenca del río Yaque del Norte. Fue la primera región insular en establecer contacto diplomático con Cristóbal Colón en diciembre de 1492."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-71.65, 19.92],
+          [-70.35, 19.72],
+          [-69.18, 19.22],
+          [-69.75, 18.88],
+          [-70.65, 18.96],
+          [-71.22, 19.48],
+          [-71.65, 19.92]
+        ]]
+      },
+      "properties": {
+        "id": "cac-magua",
+        "nombre_capa": "Cacicazgo de Maguá",
+        "subtitulo": "Cacique Guarionex",
+        "grupo_territorial": "cacicazgos_1492",
+        "anio_inicio": 1492,
+        "anio_fin": 1504,
+        "color": "#047857",
+        "descripcion_territorial": "Abarcaba el fértil valle de la Vega Real y la costa nordeste hasta la península de Samaná. Constituía uno de los núcleos agrícolas y demográficos más densos de la isla antes de la conquista española."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-71.75, 19.05],
+          [-71.22, 19.48],
+          [-70.65, 18.96],
+          [-70.18, 18.42],
+          [-70.82, 18.32],
+          [-71.48, 18.55],
+          [-71.75, 19.05]
+        ]]
+      },
+      "properties": {
+        "id": "cac-maguana",
+        "nombre_capa": "Cacicazgo de Maguana",
+        "subtitulo": "Cacique Caonabo",
+        "grupo_territorial": "cacicazgos_1492",
+        "anio_inicio": 1492,
+        "anio_fin": 1504,
+        "color": "#B45309",
+        "descripcion_territorial": "Situado en la Cordillera Central y los valles de San Juan y Azua hasta la costa sur. Bajo el liderazgo de Caonabo, encabezó la resistencia militar contra el Fuerte de La Navidad y Santo Tomás."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-72.65, 19.08],
+          [-71.75, 19.05],
+          [-71.48, 18.55],
+          [-71.15, 17.62],
+          [-72.18, 18.18],
+          [-74.45, 18.32],
+          [-74.42, 18.68],
+          [-72.65, 19.08]
+        ]]
+      },
+      "properties": {
+        "id": "cac-jaragua",
+        "nombre_capa": "Cacicazgo de Jaragua",
+        "subtitulo": "Caciques Bohechío y Anacaona",
+        "grupo_territorial": "cacicazgos_1492",
+        "anio_inicio": 1492,
+        "anio_fin": 1504,
+        "color": "#7E22CE",
+        "descripcion_territorial": "El cacicazgo más extenso y de mayor esplendor ceremonial de Quisqueya, comprendiendo el suroeste desde el lago Enriquillo y la sierra de Bahoruco hasta la península occidental."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-70.65, 18.96],
+          [-69.75, 18.88],
+          [-69.18, 19.22],
+          [-68.32, 18.62],
+          [-68.58, 18.22],
+          [-69.88, 18.45],
+          [-70.18, 18.42],
+          [-70.65, 18.96]
+        ]]
+      },
+      "properties": {
+        "id": "cac-higuey",
+        "nombre_capa": "Cacicazgo de Higüey",
+        "subtitulo": "Caciques Cayacoa y Cotubanamá",
+        "grupo_territorial": "cacicazgos_1492",
+        "anio_inicio": 1492,
+        "anio_fin": 1504,
+        "color": "#C83728",
+        "descripcion_territorial": "Dominaba toda la región oriental desde el río Ozama hasta Cabo Engaño y la isla Saona. Fue el escenario de las últimas campañas de resistencia taína bajo el cacique Cotubanamá."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [[
+            [-72.25, 19.86],
+            [-71.65, 19.92],
+            [-70.58, 19.82],
+            [-70.48, 19.58],
+            [-71.48, 19.48],
+            [-72.18, 19.52],
+            [-72.25, 19.86]
+          ]],
+          [[
+            [-72.92, 18.65],
+            [-72.25, 18.58],
+            [-72.15, 18.22],
+            [-73.25, 18.28],
+            [-72.92, 18.65]
+          ]]
+        ]
+      },
+      "properties": {
+        "id": "osorio-1606",
+        "nombre_capa": "Zona de Despoblación de Osorio (1605–1606)",
+        "subtitulo": "Banda Norte y Oeste arrasada",
+        "grupo_territorial": "despoblacion_osorio_1606",
+        "anio_inicio": 1605,
+        "anio_fin": 1697,
+        "color": "#9A3412",
+        "descripcion_territorial": "Franja territorial de la Banda Norte (Monte Cristi, Puerto Plata y Bayajá) y la Banda Oeste (La Yaguana) despoblada e incendiada por el gobernador Antonio de Osorio entre 1605 y 1606 para cortar el contrabando europeo. Este vacío demográfico facilitó el establecimiento de bucaneros y filibusteros franceses en la mitad occidental."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-73.38, 19.65],
+          [-72.85, 19.95],
+          [-71.755, 19.712],
+          [-71.715, 19.52],
+          [-71.79, 19.34],
+          [-71.93, 19.17],
+          [-72.01, 18.92],
+          [-71.95, 18.68],
+          [-71.88, 18.43],
+          [-71.74, 18.19],
+          [-71.745, 18.035],
+          [-72.35, 18.12],
+          [-74.45, 18.32],
+          [-74.42, 18.68],
+          [-72.72, 18.88],
+          [-73.38, 19.65]
+        ]]
+      },
+      "properties": {
+        "id": "aranjuez-saint-domingue",
+        "nombre_capa": "Saint-Domingue Francés (Tratado de Aranjuez)",
+        "subtitulo": "Colonia francesa occidental · 1777",
+        "grupo_territorial": "tratado_aranjuez_1777",
+        "anio_inicio": 1777,
+        "anio_fin": 1795,
+        "color": "#1E40AF",
+        "descripcion_territorial": "Territorio occidental reconocido formalmente a la Corona de Francia en el Tratado de Aranjuez (3 de junio de 1777), delimitado desde la desembocadura del río Dajabón o Masacre en el norte hasta el río Pedernales en el sur."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-71.755, 19.712],
+          [-71.65, 19.92],
+          [-70.68, 19.82],
+          [-69.85, 19.65],
+          [-69.18, 19.28],
+          [-68.32, 18.62],
+          [-68.58, 18.22],
+          [-69.88, 18.45],
+          [-70.62, 18.22],
+          [-71.24, 17.78],
+          [-71.42, 17.56],
+          [-71.745, 18.035],
+          [-71.74, 18.19],
+          [-71.88, 18.43],
+          [-71.95, 18.68],
+          [-72.01, 18.92],
+          [-71.93, 19.17],
+          [-71.79, 19.34],
+          [-71.715, 19.52],
+          [-71.755, 19.712]
+        ]]
+      },
+      "properties": {
+        "id": "aranjuez-santo-domingo-espanol",
+        "nombre_capa": "Capitanía General de Santo Domingo (Tratado de Aranjuez)",
+        "subtitulo": "Parte oriental española · 1777",
+        "grupo_territorial": "tratado_aranjuez_1777",
+        "anio_inicio": 1777,
+        "anio_fin": 1795,
+        "color": "#B45309",
+        "descripcion_territorial": "Porción oriental bajo soberanía de la Corona española tras el trazado definitivo de 221 mojones fronterizos acordado en Aranjuez en 1777, base jurídica histórica del actual territorio de la República Dominicana."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-72.85, 19.95],
+          [-71.65, 19.92],
+          [-70.68, 19.82],
+          [-69.85, 19.65],
+          [-69.18, 19.28],
+          [-68.32, 18.62],
+          [-68.58, 18.22],
+          [-69.88, 18.45],
+          [-70.62, 18.22],
+          [-71.42, 17.56],
+          [-72.18, 18.18],
+          [-74.45, 18.32],
+          [-74.42, 18.68],
+          [-72.72, 18.88],
+          [-73.38, 19.65],
+          [-72.85, 19.95]
+        ]]
+      },
+      "properties": {
+        "id": "unificacion-1822-1844",
+        "nombre_capa": "Unificación Política de la Isla (1822–1844)",
+        "subtitulo": "Gobierno de Jean-Pierre Boyer sobre toda La Española",
+        "grupo_territorial": "unificacion_haitiana_1822",
+        "anio_inicio": 1822,
+        "anio_fin": 1844,
+        "color": "#C83728",
+        "descripcion_territorial": "Período de veintidós años en el que toda la isla de La Española quedó unificada bajo la República de Haití tras el ingreso del presidente Jean-Pierre Boyer a Santo Domingo el 9 de febrero de 1822, abolida la esclavitud e implementado el Código Rural hasta la proclamación de la Independencia Dominicana en 1844."
+      }
+    }
+  ]
+}

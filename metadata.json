@@ -1,0 +1,8 @@
+{
+  "name": "CronoMapa RD",
+  "description": "Visor cartográfico GIS interactivo para explorar los hechos históricos, rutas y divisiones territoriales de la República Dominicana desde 1492 hasta la actualidad.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "cacicazgos": {
+    "type": "FeatureCollection",
+    "name": "cacicazgos_tainos_1492",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-72.85, 19.95],
+            [-71.65, 19.92],
+            [-71.22, 19.48],
+            [-71.75, 19.05],
+            [-72.65, 19.08],
+            [-73.38, 19.65],
+            [-72.85, 19.95]
+          ]]
+        },
+        "properties": {
+          "id": "cac-marien",
+          "nombre": "Cacicazgo de Marién",
+          "cacique": "Guacanagarix",
+          "anio_referencia": 1492,
+          "color": "#1D4ED8",
+          "descripcion": "Extendido por el noroeste de La Española desde el Cabo San Nicolás hasta el río Yaque del Norte. Fue el primer cacicazgo en establecer contacto con Cristóbal Colón en 1492."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-71.65, 19.92],
+            [-70.35, 19.72],
+            [-69.18, 19.22],
+            [-69.75, 18.88],
+            [-70.65, 18.96],
+            [-71.22, 19.48],
+            [-71.65, 19.92]
+          ]]
+        },
+        "properties": {
+          "id": "cac-magua",
+          "nombre": "Cacicazgo de Maguá",
+          "cacique": "Guarionex",
+          "anio_referencia": 1492,
+          "color": "#047857",
+          "descripcion": "Abarcaba el fértil valle de la Vega Real y la costa nordeste hasta la península de Samaná. Territorio agrícola densamente poblado de la isla."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-71.75, 19.05],
+            [-71.22, 19.48],
+            [-70.65, 18.96],
+            [-70.18, 18.42],
+            [-70.82, 18.32],
+            [-71.48, 18.55],
+            [-71.75, 19.05]
+          ]]
+        },
+        "properties": {
+          "id": "cac-maguana",
+          "nombre": "Cacicazgo de Maguana",
+          "cacique": "Caonabo",
+          "anio_referencia": 1492,
+          "color": "#B45309",
+          "descripcion": "Situado en el centro montañoso y los valles de San Juan y Azua hasta la costa sur. Liderado por el guerrero Caonabo, encabezó la resistencia taína contra los primeros fuertes."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-72.65, 19.08],
+            [-71.75, 19.05],
+            [-71.48, 18.55],
+            [-71.15, 17.62],
+            [-72.18, 18.18],
+            [-74.45, 18.32],
+            [-74.42, 18.68],
+            [-72.65, 19.08]
+          ]]
+        },
+        "properties": {
+          "id": "cac-jaragua",
+          "nombre": "Cacicazgo de Jaragua",
+          "cacique": "Bohechío y Anacaona",
+          "anio_referencia": 1492,
+          "color": "#7E22CE",
+          "descripcion": "El más extenso y refinado culturalmente de los cinco cacicazgos, comprendiendo el suroeste desde el lago Enriquillo y Bahoruco hasta la península meridional."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-70.65, 18.96],
+            [-69.75, 18.88],
+            [-69.18, 19.22],
+            [-68.32, 18.62],
+            [-68.58, 18.22],
+            [-69.88, 18.45],
+            [-70.18, 18.42],
+            [-70.65, 18.96]
+          ]]
+        },
+        "properties": {
+          "id": "cac-higuey",
+          "nombre": "Cacicazgo de Higüey",
+          "cacique": "Cayacoa y Cotubanamá",
+          "anio_referencia": 1492,
+          "color": "#C83728",
+          "descripcion": "Dominaba toda la región oriental desde el río Ozama hasta Cabo Engaño y la isla Saona. Fue escenario de las últimas campañas de resistencia indígena bajo el cacique Cotubanamá."
+        }
+      }
+    ]
+  },
+  "frontera_aranjuez_1777": {
+    "type": "FeatureCollection",
+    "name": "tratado_aranjuez_1777",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [-71.755, 19.712],
+            [-71.715, 19.52],
+            [-71.79, 19.34],
+            [-71.93, 19.17],
+            [-72.01, 18.92],
+            [-71.95, 18.68],
+            [-71.88, 18.43],
+            [-71.74, 18.19],
+            [-71.745, 18.035]
+          ]
+        },
+        "properties": {
+          "id": "linea-aranjuez-1777",
+          "titulo": "Frontera del Tratado de Aranjuez (1777)",
+          "descripcion": "Línea divisoria acordada entre las coronas de España y Francia el 3 de junio de 1777, desde la desembocadura del río Dajabón (Masacre) hasta el río Pedernales, fijando los límites entre Saint-Domingue y la Capitanía General de Santo Domingo.",
+          "anio": 1777
+        }
+      }
+    ]
+  }
+}

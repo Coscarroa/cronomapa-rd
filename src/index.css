@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --color-ink: #0D0F12;
+    --color-panel: rgba(22, 25, 32, 0.85);
+    --color-gold: #C5A059;
+    --color-gold-bright: #D4AF37;
+    --color-carmine: #9B2226;
+    --color-cobalt: #1D3557;
+    --color-ivory: #F4F1EA;
+    --color-stone: #A39E93;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0D0F12;
+    color: #F4F1EA;
+    font-family: var(--font-sans);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Archival Google Maps Canvas Styling */
+.gm-style {
+  font-family: var(--font-sans) !important;
+}
+
+.gm-style .gm-style-iw-c {
+  background-color: rgba(22, 25, 32, 0.96) !important;
+  border: 1px solid rgba(197, 160, 89, 0.4) !important;
+  border-radius: 10px !important;
+  color: #F4F1EA !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75) !important;
+}
+
+.gm-style .gm-style-iw-tc::after {
+  background: rgba(22, 25, 32, 0.96) !important;
+}
+
+/* Radial pulse ring for historical milestones (Batallas & Proclamaciones) */
+@keyframes cronoPulseRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.95);
+    opacity: 0;
+  }
+}
+
+.crono-pulse-ring {
+  animation: cronoPulseRing 2.2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+/* Chronos Stamp Overlay Animation (900ms sequence) */
+@keyframes chronosStamp {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1.015) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.04) translateY(-6px);
+  }
+}
+
+.chronos-stamp {
+  animation: chronosStamp 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crono-pulse-ring,
+  .chronos-stamp {
+    animation: none;
+  }
+}
+
+/* Custom Range Slider for Archival Gold GIS Controls */
+input[type='range'].gis-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(197, 160, 89, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range'].gis-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #D4AF37;
+  border: 2px solid #0D0F12;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+input[type='range'].gis-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type='range'].gis-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #D4AF37;
+  border: 2px solid #0D0F12;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35);
+}
+
+/* Custom thin dark archival scrollbar */
+.gis-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.gis-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gis-scroll::-webkit-scrollbar-thumb {
+  background: rgba(197, 160, 89, 0.28);
+  border-radius: 999px;
+}
+
+.gis-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.52);
+}
+
+/* MÓDULO A: Modo Proyección PDI (+18% escala tipográfica y alto contraste a distancia) */
+.pdi-projection-mode .pdi-scalable-label {
+  transform: scale(1.18);
+  transform-origin: center center;
+  border-color: #D4AF37 !important;
+  background-color: rgba(13, 15, 18, 0.96) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85) !important;
+}
+
+.pdi-projection-mode .pdi-scalable-panel {
+  font-size: 118% !important;
+  background-color: rgba(13, 15, 18, 0.98) !important;
+}
+
+.pdi-projection-mode .pdi-scalable-panel p,
+.pdi-projection-mode .pdi-scalable-panel blockquote,
+.pdi-projection-mode .pdi-scalable-panel li,
+.pdi-projection-mode .pdi-scalable-panel span {
+  font-size: 1.08em;
+  line-height: 1.6;
+}
+
+.pdi-projection-mode .pdi-scalable-panel h2,
+.pdi-projection-mode .pdi-scalable-panel h3 {
+  font-size: 1.22em;
+}
+
+/* MÓDULO C: Impresión Vectorial Limpia en Blanco y Negro (Ahorro de Tinta MINERD) */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .minerd-print-modal,
+  #minerd-printable-sheet,
+  #minerd-printable-sheet * {
+    visibility: visible !important;
+  }
+
+  .minerd-print-modal {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  #minerd-printable-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
