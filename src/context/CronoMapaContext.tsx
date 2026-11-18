@@ -15,6 +15,7 @@ import { ANIMATED_HISTORICAL_ROUTES } from '../data/historicalRoutesData';
 import { COLONIAL_MONUMENTS } from '../data/colonialMonumentsData';
 import {
   BASE_MAPS,
+  EVENT_ASSET_MAP,
   INITIAL_LAYERS,
   MAP_INITIAL_CENTER,
   MAP_INITIAL_ZOOM,
@@ -42,6 +43,7 @@ import type {
   DossierHito,
   DossiersRegimenesData,
   EventCategory,
+  ExplorePeriodId,
   HistoricalEvent,
   HistoricalEventCollection,
   HistoricalLayer,
@@ -51,6 +53,7 @@ import type {
   LayerId,
   MandatoRD,
   MandatosCollection,
+  MilestoneCategory,
   PresidenteRD,
   PresidentesCollection,
   ProvinceCollection,
@@ -60,6 +63,7 @@ import type {
   ViewMode,
   VintageMapItem,
 } from '../types/history';
+import type { HistoricalEncyclopediaPeriod } from '../data/historicalEncyclopediaData';
 
 export const ALL_CATEGORIES: EventCategory[] = [
   'Política/Constitucional',
@@ -67,6 +71,13 @@ export const ALL_CATEGORIES: EventCategory[] = [
   'Fundación/Territorio',
   'Derechos/Sociedad',
 ];
+
+const EVENT_CAT_TO_MILESTONE_CAT: Record<EventCategory, MilestoneCategory> = {
+  'Política/Constitucional': 'Política',
+  'Batalla/Militar': 'Batalla',
+  'Fundación/Territorio': 'Fundación',
+  'Derechos/Sociedad': 'Derechos',
+};
 
 interface CronoMapaContextValue {
   viewMode: ViewMode;
@@ -94,12 +105,17 @@ interface CronoMapaContextValue {
   setSearchQuery: (q: string) => void;
   regimeFilter: RegimeFilter;
   setRegimeFilter: (filter: RegimeFilter) => void;
+  activePeriodFilter: ExplorePeriodId | null;
+  setActivePeriodFilter: (periodId: ExplorePeriodId | null) => void;
+  explorePeriodOnMap: (period: HistoricalEncyclopediaPeriod) => void;
   selectedFeature: SelectedFeature | null;
   setSelectedFeature: (feature: SelectedFeature | null) => void;
   cursorCoords: { lat: number; lng: number };
   setCursorCoords: (coords: { lat: number; lng: number }) => void;
   zoom: number;
   setZoom: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
   flyToTarget: FlyToTarget | null;
   resetView: () => void;
   flyToCoords: (coords: [number, number], zoom?: number) => void;
@@ -125,7 +141,7 @@ interface CronoMapaContextValue {
   routeProgress: number; // 0..1
   routeStopIndex: number;
   routeResetNonce: number;
-  startAnimatedRoute: (route: AnimatedHistoricalRoute) => void;
+  startAnimatedRoute: (route: AnimatedHistoricalRoute, autoPlay?: boolean) => void;
   toggleRoutePlay: () => void;
   restartAnimatedRoute: () => void;
   closeAnimatedRoute: () => void;
@@ -170,9 +186,7 @@ const CronoMapaContext = createContext<CronoMapaContextValue | null>(null);
 
 export function CronoMapaProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewModeState] = useState<ViewMode>('map');
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= 900 : true,
-  );
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeBaseMapId, setActiveBaseMapId] = useState<BaseMapId>('realistic_relief');
   const [reliefIntensity, setReliefIntensity] = useState<number>(0.85);
   const [layers, setLayers] = useState<HistoricalLayer[]>(INITIAL_LAYERS);
@@ -181,11 +195,20 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>(ALL_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [regimeFilter, setRegimeFilterState] = useState<RegimeFilter>('all');
+  const [activePeriodFilter, setActivePeriodFilter] = useState<ExplorePeriodId | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<SelectedFeature | null>(null);
-  const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number }>({
+  const [cursorCoords, setCursorCoordsState] = useState<{ lat: number; lng: number }>({
     lat: MAP_INITIAL_CENTER[0],
     lng: MAP_INITIAL_CENTER[1],
   });
+  const setCursorCoords = useCallback((coords: { lat: number; lng: number }) => {
+    const nextLat = Number(coords.lat.toFixed(4));
+    const nextLng = Number(coords.lng.toFixed(4));
+    setCursorCoordsState((prev) => {
+      if (prev.lat === nextLat && prev.lng === nextLng) return prev;
+      return { lat: nextLat, lng: nextLng };
+    });
+  }, []);
   const [zoom, setZoom] = useState<number>(MAP_INITIAL_ZOOM);
   const [flyToTarget, setFlyToTarget] = useState<FlyToTarget | null>(null);
   const [tourActive, setTourActive] = useState<boolean>(false);
@@ -223,18 +246,25 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
   // Module 3: Milestones ("⚔️ Hitos")
   const [showMilestones, setShowMilestones] = useState<boolean>(true);
 
+  const allowedMilestoneCategories = useMemo(
+    () => new Set(selectedCategories.map((c) => EVENT_CAT_TO_MILESTONE_CAT[c])),
+    [selectedCategories],
+  );
+
   const filteredMilestones = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return HISTORICAL_MILESTONES.filter((m) => {
       if (m.year > maxYear) return false;
+      if (!allowedMilestoneCategories.has(m.category)) return false;
+      if (activePeriodFilter && m.periodId !== activePeriodFilter) return false;
       if (regimeFilter === 'trujillo' && (m.year < 1930 || m.year > 1961)) return false;
       if (regimeFilter === 'balaguer' && (m.year < 1960 || m.year > 1996)) return false;
       if (!q) return true;
-      return `${m.title} ${m.province} ${m.epoch} ${m.summary} ${m.protagonists.join(' ')}`
+      return `${m.title} ${m.province} ${m.epoch} ${m.category} ${m.summary} ${m.protagonists.join(' ')}`
         .toLowerCase()
         .includes(q);
     });
-  }, [maxYear, regimeFilter, searchQuery]);
+  }, [maxYear, allowedMilestoneCategories, activePeriodFilter, regimeFilter, searchQuery]);
 
   const filteredColonialMonuments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -270,7 +300,19 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
 
   const allEventsSorted = useMemo(() => {
     const col = eventosData as unknown as HistoricalEventCollection;
-    return [...col.features].sort((a, b) => a.properties.fecha.localeCompare(b.properties.fecha));
+    return col.features
+      .map((feat) => ({
+        ...feat,
+        properties: {
+          ...feat.properties,
+          imagen_url: EVENT_ASSET_MAP[feat.properties.imagen_url] ?? feat.properties.imagen_url,
+        },
+      }))
+      .sort(
+        (a, b) =>
+          a.properties.fecha.localeCompare(b.properties.fecha) ||
+          a.properties.id.localeCompare(b.properties.id),
+      );
   }, []);
 
   const allRoutes = useMemo(() => {
@@ -360,13 +402,13 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
     setLayers((prev) =>
       prev.map((layer) => {
         if (layer.id === 'cacicazgos_1492') {
-          return { ...layer, visible: year >= 1492 && year <= 1504 };
+          return { ...layer, visible: year >= 1492 && year <= 1549 };
         }
         if (layer.id === 'despoblacion_osorio_1606') {
-          return { ...layer, visible: year >= 1605 && year <= 1696 };
+          return { ...layer, visible: year >= 1550 && year <= 1715 };
         }
         if (layer.id === 'tratado_aranjuez_1777') {
-          return { ...layer, visible: year >= 1777 && year <= 1821 };
+          return { ...layer, visible: year >= 1716 && year <= 1821 };
         }
         if (layer.id === 'unificacion_haitiana_1822') {
           return { ...layer, visible: year >= 1822 && year <= 1843 };
@@ -384,10 +426,20 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
 
   const setMaxYear = useCallback(
     (year: number) => {
-      setMaxYearState(year);
+      const clamped = Math.max(1492, Math.min(2026, Math.round(year)));
+      setMaxYearState(clamped);
       if (syncTerritoryWithYear) {
-        applyTerritoryForYear(year);
+        applyTerritoryForYear(clamped);
       }
+      setSelectedFeature((prev) => {
+        if (!prev) return null;
+        if (prev.kind === 'event' && prev.data.properties.anio > clamped) return null;
+        if (prev.kind === 'milestone' && prev.data.year > clamped) return null;
+        if (prev.kind === 'colonial_monument' && prev.data.yearBuilt > clamped) return null;
+        if (prev.kind === 'dossier_hito' && prev.data.anio > clamped) return null;
+        if (prev.kind === 'route' && prev.data.properties.anio_inicio > clamped) return null;
+        return prev;
+      });
     },
     [syncTerritoryWithYear, applyTerritoryForYear],
   );
@@ -402,15 +454,25 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
     [maxYear, applyTerritoryForYear],
   );
 
-  const setRegimeFilter = useCallback((filter: RegimeFilter) => {
-    setRegimeFilterState(filter);
-    if (filter !== 'all') {
-      setMaxYearState(filter === 'trujillo' ? 1961 : 1996);
-      setLayers((prev) =>
-        prev.map((l) => (l.id === 'dossiers_regimenes' ? { ...l, visible: true } : l)),
-      );
-    }
-  }, []);
+  const setRegimeFilter = useCallback(
+    (filter: RegimeFilter) => {
+      setRegimeFilterState(filter);
+      if (filter === 'all') {
+        setActivePeriodFilter(null);
+      } else {
+        setActivePeriodFilter(filter === 'trujillo' ? 'trujillo' : 'balaguer');
+        const targetYear = filter === 'trujillo' ? 1961 : 1996;
+        setMaxYearState(targetYear);
+        if (syncTerritoryWithYear) {
+          applyTerritoryForYear(targetYear);
+        }
+        setLayers((prev) =>
+          prev.map((l) => (l.id === 'dossiers_regimenes' ? { ...l, visible: true } : l)),
+        );
+      }
+    },
+    [syncTerritoryWithYear, applyTerritoryForYear],
+  );
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -418,8 +480,19 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
       const p = evt.properties;
       if (p.anio > maxYear) return false;
       if (!selectedCategories.includes(p.categoria)) return false;
-      if (regimeFilter === 'trujillo' && (p.anio < 1930 || p.anio > 1961)) return false;
-      if (regimeFilter === 'balaguer' && (p.anio < 1960 || p.anio > 1996)) return false;
+      if (activePeriodFilter === 'taina' && p.anio > 1550) return false;
+      if (activePeriodFilter === 'independencia' && (p.anio < 1838 || p.anio > 1860)) return false;
+      if (activePeriodFilter === 'restauracion' && (p.anio < 1861 || p.anio > 1866)) return false;
+      if (
+        (regimeFilter === 'trujillo' || activePeriodFilter === 'trujillo') &&
+        (p.anio < 1930 || p.anio > 1961)
+      )
+        return false;
+      if (
+        (regimeFilter === 'balaguer' || activePeriodFilter === 'balaguer') &&
+        (p.anio < 1960 || p.anio > 1996)
+      )
+        return false;
       if (!q) return true;
       const haystack = [
         p.titulo,
@@ -432,19 +505,33 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [allEventsSorted, maxYear, selectedCategories, regimeFilter, searchQuery]);
+  }, [allEventsSorted, maxYear, selectedCategories, activePeriodFilter, regimeFilter, searchQuery]);
 
   const filteredRoutes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return allRoutes.filter((route) => {
       if (route.properties.anio_inicio > maxYear) return false;
-      if (regimeFilter !== 'all') return false;
+      if (activePeriodFilter === 'taina' && route.properties.id !== 'ruta-resistencia-taina-1492')
+        return false;
+      if (
+        activePeriodFilter === 'independencia' &&
+        route.properties.id !== 'ruta-independencia-1844'
+      )
+        return false;
+      if (activePeriodFilter === 'restauracion' && route.properties.id !== 'ruta-restauracion-1863')
+        return false;
+      if (
+        regimeFilter !== 'all' ||
+        activePeriodFilter === 'trujillo' ||
+        activePeriodFilter === 'balaguer'
+      )
+        return false;
       if (!q) return true;
       return `${route.properties.titulo} ${route.properties.descripcion} ${route.properties.protagonistas.join(' ')}`
         .toLowerCase()
         .includes(q);
     });
-  }, [allRoutes, maxYear, regimeFilter, searchQuery]);
+  }, [allRoutes, maxYear, activePeriodFilter, regimeFilter, searchQuery]);
 
   const filteredDossierHitos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -479,9 +566,26 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetView = useCallback(() => {
+    setActivePeriodFilter(null);
+    setRegimeFilterState('all');
+    setMaxYearState(2026);
     setFlyToTarget({
       center: MAP_INITIAL_CENTER,
       zoom: MAP_INITIAL_ZOOM,
+      nonce: Date.now(),
+    });
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    setFlyToTarget({
+      zoomDelta: 1,
+      nonce: Date.now(),
+    });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setFlyToTarget({
+      zoomDelta: -1,
       nonce: Date.now(),
     });
   }, []);
@@ -515,19 +619,56 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
     (milestone: HistoricalMilestone) => {
       setViewModeState('map');
       setShowMilestones(true);
+      setSelectedCategories(ALL_CATEGORIES);
+      if (activePeriodFilter && activePeriodFilter !== milestone.periodId) {
+        setActivePeriodFilter(null);
+      }
       setRegimeFilterState('all');
       if (maxYear < milestone.year) {
-        setMaxYearState(milestone.year);
+        setMaxYearState(Math.max(milestone.year, 2026));
+        if (syncTerritoryWithYear) {
+          applyTerritoryForYear(milestone.year);
+        }
       }
       setSelectedFeature({ kind: 'milestone', data: milestone });
       setFlyToTarget({
         center: [milestone.lat, milestone.lng],
-        zoom: 11,
+        zoom: 12,
         nonce: Date.now(),
       });
     },
-    [maxYear],
+    [maxYear, activePeriodFilter, syncTerritoryWithYear, applyTerritoryForYear],
   );
+
+  const explorePeriodOnMap = useCallback((period: HistoricalEncyclopediaPeriod) => {
+    setViewModeState('map');
+    setShowMilestones(true);
+    setSelectedCategories(ALL_CATEGORIES);
+    setActivePeriodFilter(period.id);
+    setRegimeFilterState(period.regimeFilter);
+    setMaxYearState(period.targetYear);
+
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id === 'rutas_historicas') {
+          return { ...l, visible: Boolean(period.routeId) };
+        }
+        if (l.id === 'dossiers_regimenes') {
+          return { ...l, visible: period.regimeFilter !== 'all' };
+        }
+        if (period.territorialLayerId && l.id === period.territorialLayerId) {
+          return { ...l, visible: true };
+        }
+        return l;
+      }),
+    );
+
+    setFlyToTarget({
+      center: period.focusCenter,
+      zoom: period.focusZoom,
+      nonce: Date.now(),
+    });
+  }, []);
 
   const jumpToColonialMonument = useCallback(
     (monument: ColonialMonument) => {
@@ -535,6 +676,9 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
       setRegimeFilterState('all');
       if (maxYear < monument.yearBuilt) {
         setMaxYearState(monument.yearBuilt);
+        if (syncTerritoryWithYear) {
+          applyTerritoryForYear(monument.yearBuilt);
+        }
       }
       setLayers((prev) =>
         prev.map((l) => (l.id === 'monumentos_coloniales' ? { ...l, visible: true } : l)),
@@ -546,22 +690,26 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
         nonce: Date.now(),
       });
     },
-    [maxYear],
+    [maxYear, syncTerritoryWithYear, applyTerritoryForYear],
   );
 
   // Module 4 actions
-  const startAnimatedRoute = useCallback((route: AnimatedHistoricalRoute) => {
+  const startAnimatedRoute = useCallback((route: AnimatedHistoricalRoute, autoPlay = true) => {
     setViewModeState('map');
+    setMaxYearState((prev) => Math.max(prev, route.year));
+    setLayers((prev) =>
+      prev.map((l) => (l.id === 'rutas_historicas' ? { ...l, visible: true } : l)),
+    );
     setActiveAnimatedRoute(route);
     setRouteProgress(0);
     setRouteStopIndex(0);
-    setIsRoutePlaying(true);
+    setIsRoutePlaying(autoPlay);
     setRouteResetNonce((n) => n + 1);
     const first = route.stops[0];
     if (first) {
       setFlyToTarget({
         center: [first.lat, first.lng],
-        zoom: route.id.includes('constitucionalista') ? 14 : 9,
+        zoom: 10,
         nonce: Date.now(),
       });
     }
@@ -588,7 +736,7 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
     if (first) {
       setFlyToTarget({
         center: [first.lat, first.lng],
-        zoom: activeAnimatedRoute.id.includes('constitucionalista') ? 14 : 9,
+        zoom: 10,
         nonce: Date.now(),
       });
     }
@@ -614,7 +762,7 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
       if (stop) {
         setFlyToTarget({
           center: [stop.lat, stop.lng],
-          zoom: activeAnimatedRoute.id.includes('constitucionalista') ? 15 : 10,
+          zoom: 11,
           nonce: Date.now(),
         });
       }
@@ -696,96 +844,190 @@ export function CronoMapaProvider({ children }: { children: ReactNode }) {
     setDetailModalPresidentKey(null);
   }, []);
 
-  const value: CronoMapaContextValue = {
-    viewMode,
-    setViewMode,
-    sidebarOpen,
-    setSidebarOpen,
-    toggleSidebar: () => setSidebarOpen((o) => !o),
-    activeBaseMapId,
-    setActiveBaseMapId,
-    activeBaseMap,
-    reliefIntensity,
-    setReliefIntensity,
-    layers,
-    toggleLayer,
-    setLayerVisible,
-    changeLayerOpacity,
-    focusLayer,
-    maxYear,
-    setMaxYear,
-    syncTerritoryWithYear,
-    setSyncTerritoryWithYear,
-    selectedCategories,
-    toggleCategory,
-    searchQuery,
-    setSearchQuery,
-    regimeFilter,
-    setRegimeFilter,
-    selectedFeature,
-    setSelectedFeature,
-    cursorCoords,
-    setCursorCoords,
-    zoom,
-    setZoom,
-    flyToTarget,
-    resetView,
-    flyToCoords,
-    realProvinces,
-    cacicazgos1492,
-    provincias1844,
-    allMilestones: HISTORICAL_MILESTONES,
-    filteredMilestones,
-    showMilestones,
-    setShowMilestones,
-    toggleMilestones: () => setShowMilestones((s) => !s),
-    jumpToMilestone,
-    allColonialMonuments: COLONIAL_MONUMENTS,
-    filteredColonialMonuments,
-    jumpToColonialMonument,
-    animatedRoutes: ANIMATED_HISTORICAL_ROUTES,
-    activeAnimatedRoute,
-    isRoutePlaying,
-    routeProgress,
-    routeStopIndex,
-    routeResetNonce,
-    startAnimatedRoute,
-    toggleRoutePlay,
-    restartAnimatedRoute,
-    closeAnimatedRoute,
-    setRouteProgress,
-    setRouteStopIndex,
-    jumpToRouteStop,
-    vintageGalleryOpen,
-    setVintageGalleryOpen,
-    activeVintageMap,
-    vintageOpacity,
-    setVintageOpacity,
-    activateVintageOverlay,
-    clearVintageOverlay,
-    allEventsSorted,
-    filteredEvents,
-    allRoutes,
-    filteredRoutes,
-    allRoutesCount: allRoutes.length,
-    filteredDossierHitos,
-    allPresidents,
-    foreignPresidents,
-    allMandatos,
-    wikiPortraits,
-    portraitsLoading,
-    tourActive,
-    tourIndex,
-    startTour,
-    stopTour,
-    nextTourStep,
-    prevTourStep,
-    openEventOnMap,
-    openForeignPresidents,
-    detailModalPresidentKey,
-    openPresidentDetailModal,
-    closePresidentDetailModal,
-  };
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((o) => !o);
+  }, []);
+
+  const toggleMilestones = useCallback(() => {
+    setShowMilestones((s) => !s);
+  }, []);
+
+  const value: CronoMapaContextValue = useMemo(
+    () => ({
+      viewMode,
+      setViewMode,
+      sidebarOpen,
+      setSidebarOpen,
+      toggleSidebar,
+      activeBaseMapId,
+      setActiveBaseMapId,
+      activeBaseMap,
+      reliefIntensity,
+      setReliefIntensity,
+      layers,
+      toggleLayer,
+      setLayerVisible,
+      changeLayerOpacity,
+      focusLayer,
+      maxYear,
+      setMaxYear,
+      syncTerritoryWithYear,
+      setSyncTerritoryWithYear,
+      selectedCategories,
+      toggleCategory,
+      searchQuery,
+      setSearchQuery,
+      regimeFilter,
+      setRegimeFilter,
+      activePeriodFilter,
+      setActivePeriodFilter,
+      explorePeriodOnMap,
+      selectedFeature,
+      setSelectedFeature,
+      cursorCoords,
+      setCursorCoords,
+      zoom,
+      setZoom,
+      zoomIn,
+      zoomOut,
+      flyToTarget,
+      resetView,
+      flyToCoords,
+      realProvinces,
+      cacicazgos1492,
+      provincias1844,
+      allMilestones: HISTORICAL_MILESTONES,
+      filteredMilestones,
+      showMilestones,
+      setShowMilestones,
+      toggleMilestones,
+      jumpToMilestone,
+      allColonialMonuments: COLONIAL_MONUMENTS,
+      filteredColonialMonuments,
+      jumpToColonialMonument,
+      animatedRoutes: ANIMATED_HISTORICAL_ROUTES,
+      activeAnimatedRoute,
+      isRoutePlaying,
+      routeProgress,
+      routeStopIndex,
+      routeResetNonce,
+      startAnimatedRoute,
+      toggleRoutePlay,
+      restartAnimatedRoute,
+      closeAnimatedRoute,
+      setRouteProgress,
+      setRouteStopIndex,
+      jumpToRouteStop,
+      vintageGalleryOpen,
+      setVintageGalleryOpen,
+      activeVintageMap,
+      vintageOpacity,
+      setVintageOpacity,
+      activateVintageOverlay,
+      clearVintageOverlay,
+      allEventsSorted,
+      filteredEvents,
+      allRoutes,
+      filteredRoutes,
+      allRoutesCount: allRoutes.length,
+      filteredDossierHitos,
+      allPresidents,
+      foreignPresidents,
+      allMandatos,
+      wikiPortraits,
+      portraitsLoading,
+      tourActive,
+      tourIndex,
+      startTour,
+      stopTour,
+      nextTourStep,
+      prevTourStep,
+      openEventOnMap,
+      openForeignPresidents,
+      detailModalPresidentKey,
+      openPresidentDetailModal,
+      closePresidentDetailModal,
+    }),
+    [
+      viewMode,
+      setViewMode,
+      sidebarOpen,
+      toggleSidebar,
+      activeBaseMapId,
+      activeBaseMap,
+      reliefIntensity,
+      layers,
+      toggleLayer,
+      setLayerVisible,
+      changeLayerOpacity,
+      focusLayer,
+      maxYear,
+      setMaxYear,
+      syncTerritoryWithYear,
+      setSyncTerritoryWithYear,
+      selectedCategories,
+      toggleCategory,
+      searchQuery,
+      regimeFilter,
+      setRegimeFilter,
+      activePeriodFilter,
+      explorePeriodOnMap,
+      selectedFeature,
+      cursorCoords,
+      setCursorCoords,
+      zoom,
+      zoomIn,
+      zoomOut,
+      flyToTarget,
+      resetView,
+      flyToCoords,
+      realProvinces,
+      cacicazgos1492,
+      provincias1844,
+      filteredMilestones,
+      showMilestones,
+      toggleMilestones,
+      jumpToMilestone,
+      filteredColonialMonuments,
+      jumpToColonialMonument,
+      activeAnimatedRoute,
+      isRoutePlaying,
+      routeProgress,
+      routeStopIndex,
+      routeResetNonce,
+      startAnimatedRoute,
+      toggleRoutePlay,
+      restartAnimatedRoute,
+      closeAnimatedRoute,
+      jumpToRouteStop,
+      vintageGalleryOpen,
+      activeVintageMap,
+      vintageOpacity,
+      activateVintageOverlay,
+      clearVintageOverlay,
+      allEventsSorted,
+      filteredEvents,
+      allRoutes,
+      filteredRoutes,
+      filteredDossierHitos,
+      allPresidents,
+      foreignPresidents,
+      allMandatos,
+      wikiPortraits,
+      portraitsLoading,
+      tourActive,
+      tourIndex,
+      startTour,
+      stopTour,
+      nextTourStep,
+      prevTourStep,
+      openEventOnMap,
+      openForeignPresidents,
+      detailModalPresidentKey,
+      openPresidentDetailModal,
+      closePresidentDetailModal,
+    ],
+  );
 
   return <CronoMapaContext.Provider value={value}>{children}</CronoMapaContext.Provider>;
 }

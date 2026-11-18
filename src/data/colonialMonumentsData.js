@@ -356,13 +356,41 @@ function isHistoricalPhoto(title, caption, dateLabel) {
   );
 }
 
+function createTimedSignal(externalSignal, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onAbort, { once: true });
+    }
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timerId);
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onAbort);
+      }
+    },
+  };
+}
+
 async function queryWikipediaByLang(lang, title, fallbackName, signal) {
   const summaryEndpoint =
     `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}` +
     `&redirects=1&prop=extracts|info|pageimages&exintro=1&explaintext=1&inprop=url` +
     `&piprop=original|thumbnail&pithumbsize=900&format=json&origin=*`;
 
-  const res = await fetch(summaryEndpoint, { signal });
+  const timedSummary = createTimedSignal(signal, 8000);
+  let res;
+  try {
+    res = await fetch(summaryEndpoint, { signal: timedSummary.signal });
+  } finally {
+    timedSummary.cleanup();
+  }
   if (!res.ok) return null;
 
   const data = await res.json();
@@ -396,8 +424,9 @@ async function queryWikipediaByLang(lang, title, fallbackName, signal) {
     `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(canonicalTitle)}` +
     `&generator=images&gimlimit=15&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=800&format=json&origin=*`;
 
+  const timedGallery = createTimedSignal(signal, 8000);
   try {
-    const galleryRes = await fetch(galleryEndpoint, { signal });
+    const galleryRes = await fetch(galleryEndpoint, { signal: timedGallery.signal });
     if (galleryRes.ok) {
       const galleryData = await galleryRes.json();
       const imagePages = galleryData?.query?.pages ? Object.values(galleryData.query.pages) : [];
@@ -434,6 +463,8 @@ async function queryWikipediaByLang(lang, title, fallbackName, signal) {
     }
   } catch {
     // Keep primary thumbnail if gallery lookup fails
+  } finally {
+    timedGallery.cleanup();
   }
 
   photos.sort((a, b) => Number(b.isHistoricalHint) - Number(a.isHistoricalHint));
@@ -512,7 +543,10 @@ export async function fetchMonumentWikipediaImages(monumentOrTitle, options = {}
         photos: [],
       };
 
-      wikiImageMemoryCache.set(cacheKey, finalPayload);
+      // Solo cachear en memoria si la consulta obtuvo datos válidos de Wikipedia y no fue abortada
+      if (result && !options.signal?.aborted) {
+        wikiImageMemoryCache.set(cacheKey, finalPayload);
+      }
       return finalPayload;
     } finally {
       wikiImageInflight.delete(cacheKey);

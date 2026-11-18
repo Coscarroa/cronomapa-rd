@@ -65,6 +65,8 @@ export default function HistoricalDrawer({
     portraitsLoading,
     detailModalPresidentKey,
     openPresidentDetailModal,
+    animatedRoutes,
+    startAnimatedRoute,
   } = useCronoMapa();
 
   const [activeTab, setActiveTab] = useState<EventTab>('relato');
@@ -111,7 +113,7 @@ export default function HistoricalDrawer({
   return (
     <aside
       aria-label="Ficha historiográfica y biográfica"
-      className="pdi-scalable-panel absolute top-0 right-0 z-[940] h-full w-full sm:w-[460px] bg-[#161920]/90 backdrop-blur-xl border-l border-[#C5A059]/30 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden transition-all duration-300 text-[#F4F1EA] print:hidden"
+      className="pdi-scalable-panel absolute top-0 right-0 bottom-16 z-[940] w-full sm:w-[440px] bg-slate-900/90 backdrop-blur-md border-l border-[#C5A059]/30 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden transition-all duration-300 text-[#F4F1EA] print:hidden"
     >
       {/* Museum Accession Header */}
       <div className="px-5 pt-4 pb-3 border-b border-[#C5A059]/25 flex items-start justify-between gap-3">
@@ -132,11 +134,7 @@ export default function HistoricalDrawer({
             <>
               <div className="text-xs text-[#C5A059] font-mono-tabular">
                 {selectedFeature.data.epoch} · {selectedFeature.data.date} ·{' '}
-                {selectedFeature.data.type === 'batalla'
-                  ? 'Batalla Histórica'
-                  : selectedFeature.data.type === 'proclamacion'
-                    ? 'Proclamación'
-                    : 'Fundación'}
+                {selectedFeature.data.category}
               </div>
               <h2 className="font-display text-lg font-semibold text-[#F4F1EA] leading-snug mt-1">
                 {selectedFeature.data.title}
@@ -706,6 +704,7 @@ export default function HistoricalDrawer({
         {selectedFeature.kind === 'route' &&
           (() => {
             const props = selectedFeature.data.properties;
+            const matchingAnimated = animatedRoutes.find((r) => r.id === props.id);
             return (
               <>
                 <div className="flex items-center gap-2 text-xs text-[#A39E93]">
@@ -716,6 +715,31 @@ export default function HistoricalDrawer({
                     {props.hitos.length} hitos
                   </span>
                 </div>
+
+                {matchingAnimated && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startAnimatedRoute(matchingAnimated, true);
+                        setSelectedFeature(null);
+                      }}
+                      className="w-full py-2 px-3 rounded-lg bg-[#D4AF37] hover:bg-[#C5A059] text-[#0D0F12] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <span>▶ Reproducir Ruta Animada</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startAnimatedRoute(matchingAnimated, false);
+                        setSelectedFeature(null);
+                      }}
+                      className="w-full py-2 px-3 rounded-lg border border-[#D4AF37]/60 bg-[#0D0F12]/80 hover:bg-[#D4AF37]/15 text-[#D4AF37] font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <span>👣 Recorrido Paso a Paso</span>
+                    </button>
+                  </div>
+                )}
 
                 <p className="text-[#F4F1EA]/90 leading-relaxed">{props.descripcion}</p>
 

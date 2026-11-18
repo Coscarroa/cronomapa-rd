@@ -8,7 +8,9 @@ import TimelineTransitionOverlay from './components/map/TimelineTransitionOverla
 import Header, { type QuickExploreTopic } from './components/ui/Header';
 import CronoGuideModal from './components/ui/CronoGuideModal';
 import HistoricalDrawer from './components/ui/HistoricalDrawer';
+import HistoricalExploreModal from './components/ui/HistoricalExploreModal';
 import HistoricalMapsGallery from './components/ui/HistoricalMapsGallery';
+import MapLegend from './components/ui/MapLegend';
 import PresidentDetailModal from './components/ui/PresidentDetailModal';
 import MapStatusHUD from './components/ui/MapStatusHUD';
 import RoutePlayerWidget from './components/ui/RoutePlayerWidget';
@@ -17,7 +19,7 @@ import TimelineBottomBar from './components/ui/TimelineBottomBar';
 import TeacherToolbar, { type WhiteboardToolMode } from './components/ui/TeacherToolbar.jsx';
 import PrimarySourceDrawer from './components/ui/PrimarySourceDrawer.jsx';
 import { getEpochForYear } from './data/historicalLayersData';
-import type { HistoricalRoute, PresidenteRD } from './types/history';
+import type { ExplorePeriodId, HistoricalRoute, PresidenteRD } from './types/history';
 
 const DynamicMapView = lazy(() => import('./components/map/MapView'));
 const LazyWhiteboardCanvasOverlay = lazy(
@@ -85,11 +87,14 @@ function CronoMapaShell() {
     detailModalPresidentKey,
     openPresidentDetailModal,
     closePresidentDetailModal,
+    explorePeriodOnMap,
   } = useCronoMapa();
 
   const [compareMode, setCompareMode] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideResetKey, setGuideResetKey] = useState(0);
+  const [exploreModalOpen, setExploreModalOpen] = useState(false);
+  const [exploreInitialPeriod, setExploreInitialPeriod] = useState<ExplorePeriodId | null>(null);
 
   // Suite Pedagógica "Modo Aula / Docente" (Divulgación Progresiva)
   const [isTeacherMode, setIsTeacherMode] = useState(false);
@@ -201,6 +206,12 @@ function CronoMapaShell() {
     setCompareMode(false);
     setGuideResetKey((prev) => prev + 1);
     setGuideOpen(true);
+  }, []);
+
+  const handleOpenExploreModal = useCallback((periodId?: ExplorePeriodId) => {
+    setCompareMode(false);
+    setExploreInitialPeriod(periodId ?? null);
+    setExploreModalOpen(true);
   }, []);
 
   const handleCloseGuide = useCallback(() => {
@@ -315,6 +326,7 @@ function CronoMapaShell() {
         }}
         onStopTour={stopTour}
         onSelectQuickExplore={handleSelectQuickExplore}
+        onOpenExploreModal={handleOpenExploreModal}
         onResetMap={() => {
           setCompareMode(false);
           resetView();
@@ -414,8 +426,9 @@ function CronoMapaShell() {
             <TimelineTransitionOverlay year={maxYear} />
 
             {/* Oculta paneles secundarios en Modo Proyección PDI para priorizar lectura a distancia */}
-            {!isPdiMode && <SidebarGIS />}
+            {!isPdiMode && <SidebarGIS onOpenExploreModal={handleOpenExploreModal} />}
             {!isPdiMode && <MapStatusHUD />}
+            {!isPdiMode && <MapLegend />}
 
             {/* Barra Flotante de Herramientas de Aula (Modo Docente) */}
             {isTeacherMode && (
@@ -580,6 +593,23 @@ function CronoMapaShell() {
           presidentKey={detailModalPresidentKey}
           onClose={closePresidentDetailModal}
           onSelectPresident={openPresidentDetailModal}
+        />
+
+        <HistoricalExploreModal
+          isOpen={exploreModalOpen}
+          initialPeriodId={exploreInitialPeriod}
+          onClose={() => setExploreModalOpen(false)}
+          milestones={allMilestones}
+          animatedRoutes={animatedRoutes}
+          onExplorePeriodOnMap={explorePeriodOnMap}
+          onSelectMilestone={(m) => {
+            setCompareMode(false);
+            jumpToMilestone(m);
+          }}
+          onStartAnimatedRoute={(ar, autoPlay) => {
+            setCompareMode(false);
+            startAnimatedRoute(ar, autoPlay);
+          }}
         />
       </main>
     </div>

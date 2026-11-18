@@ -95,7 +95,9 @@ export async function fetchRealProvinceGeoJSON(): Promise<ProvinceCollection> {
 
   if (typeof window !== 'undefined') {
     try {
-      const cached = window.sessionStorage.getItem(SESSION_CACHE_KEY);
+      const cached =
+        window.localStorage?.getItem(SESSION_CACHE_KEY) ||
+        window.sessionStorage?.getItem(SESSION_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as ProvinceCollection;
         if (parsed?.features?.length >= 30) {
@@ -108,10 +110,17 @@ export async function fetchRealProvinceGeoJSON(): Promise<ProvinceCollection> {
     }
   }
 
+  const controller = new AbortController();
+  const timeoutId =
+    typeof window !== 'undefined'
+      ? window.setTimeout(() => controller.abort(), 7000)
+      : setTimeout(() => controller.abort(), 7000);
+
   try {
     const response = await fetch(PROVINCES_GEOJSON_URL, {
       mode: 'cors',
       cache: 'force-cache',
+      signal: controller.signal,
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -122,15 +131,22 @@ export async function fetchRealProvinceGeoJSON(): Promise<ProvinceCollection> {
       inMemoryProvincesCache = enriched;
       if (typeof window !== 'undefined') {
         try {
-          window.sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(enriched));
+          const serialized = JSON.stringify(enriched);
+          try {
+            window.localStorage?.setItem(SESSION_CACHE_KEY, serialized);
+          } catch {
+            window.sessionStorage?.setItem(SESSION_CACHE_KEY, serialized);
+          }
         } catch {
-          // Ignore sessionStorage quota issues
+          // Ignore storage quota issues
         }
       }
       return enriched;
     }
   } catch {
     // Clean fallback to bundled real GeoJSON borders
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   inMemoryProvincesCache = localFallbackTyped;

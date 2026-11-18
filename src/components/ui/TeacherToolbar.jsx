@@ -55,12 +55,12 @@ export default function TeacherToolbar({
   const [collapsed, setCollapsed] = useState(false);
 
   const leftOffsetClass =
-    sidebarOpen && !isPdiMode ? 'left-4 md:left-[364px]' : 'left-4';
+    sidebarOpen && !isPdiMode ? 'left-4 md:left-[304px]' : 'left-4';
 
   return (
     <aside
       aria-label="Barra de herramientas del Modo Docente"
-      className={`fixed md:absolute top-16 ${leftOffsetClass} z-[925] w-64 sm:w-68 bg-[#161920]/95 backdrop-blur-xl border border-[#D4AF37]/50 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-[#F4F1EA] transition-all duration-200 select-none print:hidden`}
+      className={`fixed md:absolute top-16 ${leftOffsetClass} z-[925] w-64 sm:w-68 bg-slate-900/90 backdrop-blur-md border border-[#D4AF37]/50 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-[#F4F1EA] transition-all duration-200 select-none print:hidden`}
     >
       {/* Encabezado de la Barra Docente */}
       <div className="px-3.5 py-2.5 border-b border-[#C5A059]/25 flex items-center justify-between gap-2 bg-[#0D0F12]/60 rounded-t-xl">

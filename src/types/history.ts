@@ -304,8 +304,15 @@ export interface HistoricalLayer {
 export type ViewMode = 'map' | 'timeline';
 export type RegimeFilter = 'all' | 'trujillo' | 'balaguer';
 
-export type MilestoneEpoch = 'Colonia' | '1844' | 'Restauración' | 'Siglo XX';
+export type MilestoneEpoch = 'Época Taína' | 'Colonia' | '1844' | 'Restauración' | 'Siglo XX';
 export type MilestoneType = 'batalla' | 'proclamacion' | 'fundacion';
+export type MilestoneCategory = 'Política' | 'Batalla' | 'Fundación' | 'Derechos';
+export type ExplorePeriodId =
+  | 'taina'
+  | 'independencia'
+  | 'restauracion'
+  | 'trujillo'
+  | 'balaguer';
 
 export interface HistoricalMilestone {
   id: string;
@@ -314,6 +321,8 @@ export interface HistoricalMilestone {
   year: number;
   epoch: MilestoneEpoch;
   type: MilestoneType;
+  category: MilestoneCategory;
+  periodId: ExplorePeriodId;
   lat: number;
   lng: number;
   province: string;

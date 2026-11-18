@@ -1,193 +1,548 @@
+import { useMemo, useState } from 'react';
 import {
-  Award,
-  ChevronLeft,
-  ChevronRight,
-  Compass,
-  Eye,
-  EyeOff,
-  Filter,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Globe2,
+  Landmark,
   Layers,
   MapPin,
-  Mountain,
+  Menu,
+  Play,
   Route,
-  Satellite,
   ScrollText,
-  Search,
+  Swords,
+  Users,
   X,
 } from 'lucide-react';
 import { ALL_CATEGORIES, useCronoMapa } from '../../context/CronoMapaContext';
-import { BASE_MAPS } from '../../data/layersConfig';
-import type { BaseMapId, EventCategory, LayerGroup, RegimeFilter } from '../../types/history';
+import { HISTORICAL_ENCYCLOPEDIA_PERIODS } from '../../data/historicalEncyclopediaData';
+import type { EventCategory, ExplorePeriodId, LayerId } from '../../types/history';
 
-const GROUP_LABELS: { key: LayerGroup; titulo: string }[] = [
-  { key: 'geopolitica', titulo: 'Geopolítica y Dossiers Especiales' },
-  { key: 'poligonos', titulo: 'Polígonos Territoriales Dinámicos' },
-  { key: 'rutas', titulo: 'Rutas Vectoriales' },
-  { key: 'antiguos', titulo: 'Mapas Antiguos Georreferenciados' },
-  { key: 'puntos', titulo: 'Hechos Históricos y Políticos' },
-];
-
-const CATEGORY_COLOR: Record<EventCategory, string> = {
-  'Política/Constitucional': '#1B3B82',
-  'Batalla/Militar': '#C83728',
-  'Fundación/Territorio': '#92400E',
-  'Derechos/Sociedad': '#0F766E',
+const CATEGORY_META: Record<EventCategory, { shortLabel: string; color: string }> = {
+  'Política/Constitucional': { shortLabel: 'Política', color: '#2563EB' },
+  'Batalla/Militar': { shortLabel: 'Batalla', color: '#DC2626' },
+  'Fundación/Territorio': { shortLabel: 'Fundación', color: '#D97706' },
+  'Derechos/Sociedad': { shortLabel: 'Derechos', color: '#0D9488' },
 };
 
-function BaseMapIcon({ id }: { id: BaseMapId }) {
-  if (id === 'satellite_hybrid') return <Satellite className="w-4 h-4 shrink-0" />;
-  if (id === 'realistic_relief' || id === 'physical_historical')
-    return <Mountain className="w-4 h-4 shrink-0" />;
-  return <ScrollText className="w-4 h-4 shrink-0" />;
-}
-
-function GroupIcon({ group }: { group: LayerGroup }) {
-  if (group === 'geopolitica') return <Award className="w-3.5 h-3.5 text-[#D4AF37]" />;
-  if (group === 'poligonos') return <Layers className="w-3.5 h-3.5 text-[#C5A059]" />;
-  if (group === 'rutas') return <Route className="w-3.5 h-3.5 text-[#C5A059]" />;
-  if (group === 'antiguos') return <ScrollText className="w-3.5 h-3.5 text-[#C5A059]" />;
-  return <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />;
-}
-
-const REGIME_OPTIONS: { id: RegimeFilter; label: string }[] = [
-  { id: 'all', label: 'Todos los períodos' },
-  { id: 'trujillo', label: 'Era de Trujillo (1930–1961)' },
-  { id: 'balaguer', label: 'Gobiernos de Balaguer (1960–1996)' },
+const TERRITORIAL_LAYER_IDS: LayerId[] = [
+  'provincias_actuales',
+  'cacicazgos_1492',
+  'despoblacion_osorio_1606',
+  'tratado_aranjuez_1777',
+  'unificacion_haitiana_1822',
+  'provincias_1844',
+  'mapa_antiguo_espaniola',
+  'plano_ciudad_colonial',
 ];
 
-export default function SidebarGIS() {
+interface SidebarGISProps {
+  onOpenExploreModal?: (periodId?: ExplorePeriodId) => void;
+}
+
+export default function SidebarGIS({ onOpenExploreModal }: SidebarGISProps = {}) {
   const {
     sidebarOpen,
     toggleSidebar,
-    activeBaseMapId,
-    setActiveBaseMapId,
-    reliefIntensity,
-    setReliefIntensity,
     layers,
     toggleLayer,
     changeLayerOpacity,
     focusLayer,
-    resetView,
-    searchQuery,
-    setSearchQuery,
     selectedCategories,
     toggleCategory,
     regimeFilter,
     setRegimeFilter,
+    activePeriodFilter,
+    setActivePeriodFilter,
+    explorePeriodOnMap,
+    showMilestones,
+    toggleMilestones,
     openForeignPresidents,
     foreignPresidents,
     filteredEvents,
-    allEventsSorted,
-    allPresidents,
-    allRoutesCount,
+    animatedRoutes,
+    activeAnimatedRoute,
+    startAnimatedRoute,
+    setVintageGalleryOpen,
+    setMaxYear,
   } = useCronoMapa();
+
+  const [showTerritorialSublayers, setShowTerritorialSublayers] = useState(false);
+
+  const layerById = useMemo(() => {
+    const map = {} as Record<LayerId, (typeof layers)[number]>;
+    for (const l of layers) {
+      map[l.id] = l;
+    }
+    return map;
+  }, [layers]);
+
+  const monumentosLayer = layerById.monumentos_coloniales;
+  const rutasLayer = layerById.rutas_historicas;
+  const eventosLayer = layerById.eventos_historicos;
+  const presidentesLayer = layerById.presidentes_provincia;
+
+  // Contador numérico de capas y filtros activos para el botón flotante tipo píldora
+  const activeCount = useMemo(() => {
+    let count = 0;
+    if (showMilestones) count += 1;
+    if (monumentosLayer?.visible) count += 1;
+    if (rutasLayer?.visible) count += 1;
+    if (presidentesLayer?.visible) count += 1;
+    if (regimeFilter !== 'all') count += 1;
+    if (selectedCategories.length < ALL_CATEGORIES.length) {
+      count += selectedCategories.length;
+    }
+    const extraTerritorial = layers.filter(
+      (l) =>
+        TERRITORIAL_LAYER_IDS.includes(l.id) &&
+        l.id !== 'provincias_actuales' &&
+        l.visible,
+    ).length;
+    count += extraTerritorial;
+    return count;
+  }, [
+    showMilestones,
+    monumentosLayer?.visible,
+    rutasLayer?.visible,
+    presidentesLayer?.visible,
+    regimeFilter,
+    selectedCategories.length,
+    layers,
+  ]);
+
+  const territorialLayers = useMemo(
+    () => layers.filter((l) => TERRITORIAL_LAYER_IDS.includes(l.id)),
+    [layers],
+  );
 
   return (
     <>
-      {/* Collapsed Floating Reopen Button */}
+      {/* Botón Flotante Tipo Píldora en Esquina Superior Izquierda ("☰ Capas y Filtros") */}
       {!sidebarOpen && (
         <button
           type="button"
           onClick={toggleSidebar}
-          aria-label="Abrir panel de capas GIS"
-          className="absolute top-3 left-4 z-[900] flex items-center gap-2 px-3.5 py-2 min-h-[40px] bg-[#161920]/85 backdrop-blur-xl border border-[#C5A059]/30 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] text-[#F4F1EA] hover:border-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] whitespace-nowrap shrink-0"
+          aria-label="Abrir panel de Capas y Filtros"
+          className="absolute top-3.5 left-4 z-[900] flex items-center gap-2 px-4 py-2 min-h-[38px] bg-slate-900/90 backdrop-blur-md border border-[#C5A059]/40 rounded-full shadow-[0_14px_34px_rgba(0,0,0,0.7)] text-[#F4F1EA] hover:border-[#D4AF37] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] whitespace-nowrap shrink-0 print:hidden"
         >
-          <Layers className="w-4 h-4 text-[#D4AF37] shrink-0" />
-          <span className="text-xs font-semibold">Capas y Filtros</span>
-          <ChevronRight className="w-4 h-4 text-[#A39E93] shrink-0" />
+          <Menu className="w-4 h-4 text-[#D4AF37] shrink-0" />
+          <span className="text-xs font-semibold tracking-wide">Capas y Filtros</span>
+          {activeCount > 0 && (
+            <span className="ml-0.5 min-w-[20px] h-5 px-1.5 rounded-full bg-[#D4AF37] text-[#0D0F12] font-mono-tabular text-[11px] font-bold flex items-center justify-center shadow-sm">
+              {activeCount}
+            </span>
+          )}
         </button>
       )}
 
-      {/* Mobile Backdrop */}
+      {/* Backdrop sutil sólo en pantallas móviles */}
       {sidebarOpen && (
         <div
           onClick={toggleSidebar}
-          className="absolute inset-0 bg-black/50 z-[890] md:hidden"
+          className="absolute inset-0 bg-black/40 z-[895] sm:hidden print:hidden"
           aria-hidden="true"
         />
       )}
 
-      {/* Main Collapsible Left GIS Sidebar */}
+      {/* Drawer Lateral Izquierdo Colapsable (288px / w-72) con fondo oscuro translúcido */}
       <aside
-        aria-label="Gestor de capas cartográficas y filtros"
-        className={`absolute top-0 left-0 z-[900] h-full w-[350px] max-w-[90vw] bg-[#161920]/90 backdrop-blur-xl border-r border-[#C5A059]/30 shadow-[0_20px_50px_rgba(0,0,0,0.75)] flex flex-col text-[#F4F1EA] transition-transform duration-200 ease-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        aria-label="Capas y Filtros Cartográficos"
+        className={`absolute top-0 left-0 bottom-16 z-[910] w-72 max-w-[88vw] bg-slate-900/90 backdrop-blur-md border-r border-[#C5A059]/30 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col text-[#F4F1EA] transition-transform duration-200 ease-out print:hidden ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
       >
-        {/* Sidebar Top Search & Collapse */}
-        <div className="px-4 pt-4 pb-3 border-b border-[#C5A059]/20 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Compass className="w-4 h-4 text-[#D4AF37] shrink-0" />
-              <span className="font-display text-sm font-semibold text-[#F4F1EA]">
-                Panel Cartográfico GIS
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-label="Contraer panel lateral"
-              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg border border-[#C5A059]/30 bg-[#0D0F12]/80 text-[#A39E93] hover:text-[#F4F1EA] hover:border-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+        {/* Encabezado del Drawer con botón ✕ */}
+        <div className="px-4 py-3 border-b border-[#C5A059]/25 flex items-center justify-between gap-2 bg-[#0D0F12]/60 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Layers className="w-4 h-4 text-[#D4AF37] shrink-0" />
+            <span className="font-display text-sm font-semibold text-[#F4F1EA] truncate">
+              Capas y Filtros
+            </span>
           </div>
-
-          {/* Real-time Keyword Search */}
-          <div className="relative">
-            <Search
-              className="w-3.5 h-3.5 text-[#C5A059] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar hecho, provincia o prócer..."
-              aria-label="Buscar hecho histórico, provincia o personaje"
-              className="w-full pl-9 pr-8 py-2 text-xs bg-[#0D0F12]/90 border border-[#C5A059]/30 rounded-lg text-[#F4F1EA] placeholder:text-[#A39E93] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Limpiar búsqueda"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A39E93] hover:text-[#F4F1EA] p-1"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Cerrar panel de capas y filtros"
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#C5A059]/30 bg-[#0D0F12]/80 text-[#A39E93] hover:text-[#F4F1EA] hover:border-[#D4AF37] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Scrollable GIS Controls */}
-        <div className="flex-1 overflow-y-auto gis-scroll px-4 py-4 space-y-6">
-          {/* Regimes Special Filter Section: Trujillo y Balaguer */}
-          <section aria-labelledby="regimes-heading" className="space-y-2">
-            <h2
-              id="regimes-heading"
-              className="text-[11px] uppercase tracking-[0.16em] font-semibold text-[#C5A059]"
-            >
-              Regímenes del Siglo XX: Trujillo y Balaguer
-            </h2>
-            <div className="grid grid-cols-1 gap-1.5">
-              {REGIME_OPTIONS.map((opt) => {
-                const active = regimeFilter === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setRegimeFilter(opt.id)}
-                    aria-pressed={active}
-                    className={`w-full px-3 py-2 text-left text-xs font-medium rounded-lg border transition-colors whitespace-nowrap truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
-                      active
-                        ? 'bg-[#9B2226] text-[#F4F1EA] border-[#D4AF37]/60'
-                        : 'bg-[#0D0F12]/70 text-[#F4F1EA]/85 border-[#C5A059]/20 hover:border-[#C5A059]/50'
+        {/* Contenido Ordenado del Drawer */}
+        <div className="flex-1 overflow-y-auto gis-scroll p-4 space-y-5">
+          {/* 1. CAPAS HISTÓRICAS (Checkboxes principales) */}
+          <section aria-labelledby="drawer-layers-heading" className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h2
+                id="drawer-layers-heading"
+                className="text-[11px] uppercase tracking-[0.14em] font-semibold text-[#C5A059]"
+              >
+                Capas Históricas
+              </h2>
+              <span className="font-mono-tabular text-[10px] text-[#A39E93]">Activas</span>
+            </div>
+
+            <div className="space-y-1.5">
+              {/* Checkbox 1: Hitos */}
+              <label className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 hover:border-[#D4AF37]/60 cursor-pointer transition-colors select-none">
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={showMilestones}
+                    onChange={toggleMilestones}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                      showMilestones
+                        ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                        : 'bg-[#0D0F12] border-[#C5A059]/40'
                     }`}
                   >
-                    {opt.label}
-                  </button>
+                    {showMilestones && <Check className="w-3 h-3 stroke-[3]" />}
+                  </span>
+                  <Swords className="w-3.5 h-3.5 text-[#E63946] shrink-0" />
+                  <span className="text-xs font-medium text-[#F4F1EA] truncate">Hitos</span>
+                </span>
+                <span className="text-[10px] font-mono-tabular text-[#A39E93]">Batallas</span>
+              </label>
+
+              {/* Checkbox 2: Sitios Coloniales */}
+              {monumentosLayer && (
+                <label className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 hover:border-[#D4AF37]/60 cursor-pointer transition-colors select-none">
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={monumentosLayer.visible}
+                      onChange={() => toggleLayer('monumentos_coloniales')}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                        monumentosLayer.visible
+                          ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                          : 'bg-[#0D0F12] border-[#C5A059]/40'
+                      }`}
+                    >
+                      {monumentosLayer.visible && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
+                    <Landmark className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                    <span className="text-xs font-medium text-[#F4F1EA] truncate">
+                      Sitios Coloniales
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-mono-tabular text-[#C5A059]">UNESCO</span>
+                </label>
+              )}
+
+              {/* Checkbox 3: Rutas Históricas */}
+              {rutasLayer && (
+                <div className="rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 overflow-hidden">
+                  <label className="flex items-center justify-between gap-2.5 px-3 py-2 hover:bg-[#C5A059]/10 cursor-pointer transition-colors select-none">
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={rutasLayer.visible}
+                        onChange={() => toggleLayer('rutas_historicas')}
+                        className="sr-only"
+                      />
+                      <span
+                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                          rutasLayer.visible
+                            ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                            : 'bg-[#0D0F12] border-[#C5A059]/40'
+                        }`}
+                      >
+                        {rutasLayer.visible && <Check className="w-3 h-3 stroke-[3]" />}
+                      </span>
+                      <Route className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
+                      <span className="text-xs font-medium text-[#F4F1EA] truncate">
+                        Rutas Históricas
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-mono-tabular text-[#A39E93]">Trazados</span>
+                  </label>
+
+                  {rutasLayer.visible && animatedRoutes.length > 0 && (
+                    <div className="px-2.5 pb-2 pt-1 border-t border-[#C5A059]/15 space-y-1">
+                      <div className="text-[10px] text-[#C5A059] font-medium px-1">
+                        Reproducir recorrido animado:
+                      </div>
+                      {animatedRoutes.map((ar) => {
+                        const isPlayingThis = activeAnimatedRoute?.id === ar.id;
+                        return (
+                          <button
+                            key={ar.id}
+                            type="button"
+                            onClick={() => startAnimatedRoute(ar)}
+                            className={`w-full text-left px-2 py-1 rounded text-[11px] flex items-center gap-1.5 transition-colors ${
+                              isPlayingThis
+                                ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-semibold'
+                                : 'text-[#F4F1EA]/85 hover:bg-[#C5A059]/15'
+                            }`}
+                          >
+                            <Play className="w-2.5 h-2.5 text-[#D4AF37] fill-current shrink-0" />
+                            <span className="truncate">{ar.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Checkbox 4: Hechos Históricos Generales */}
+              {eventosLayer && (
+                <label className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 hover:border-[#D4AF37]/60 cursor-pointer transition-colors select-none">
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={eventosLayer.visible}
+                      onChange={() => toggleLayer('eventos_historicos')}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                        eventosLayer.visible
+                          ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                          : 'bg-[#0D0F12] border-[#C5A059]/40'
+                      }`}
+                    >
+                      {eventosLayer.visible && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
+                    <MapPin className="w-3.5 h-3.5 text-[#60A5FA] shrink-0" />
+                    <span className="text-xs font-medium text-[#F4F1EA] truncate">
+                      Hechos Históricos
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-mono-tabular text-[#A39E93]">
+                    {filteredEvents.length}
+                  </span>
+                </label>
+              )}
+
+              {/* Checkbox 5: Presidentes por Provincia */}
+              {presidentesLayer && (
+                <div className="rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 overflow-hidden">
+                  <label className="flex items-center justify-between gap-2.5 px-3 py-2 hover:bg-[#C5A059]/10 cursor-pointer transition-colors select-none">
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={presidentesLayer.visible}
+                        onChange={() => toggleLayer('presidentes_provincia')}
+                        className="sr-only"
+                      />
+                      <span
+                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                          presidentesLayer.visible
+                            ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                            : 'bg-[#0D0F12] border-[#C5A059]/40'
+                        }`}
+                      >
+                        {presidentesLayer.visible && <Check className="w-3 h-3 stroke-[3]" />}
+                      </span>
+                      <Users className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                      <span className="text-xs font-medium text-[#F4F1EA] truncate">
+                        Presidentes por Provincia
+                      </span>
+                    </span>
+                  </label>
+                  {presidentesLayer.visible && (
+                    <div className="px-3 pb-2 pt-1 border-t border-[#C5A059]/15 flex items-center justify-between">
+                      <span className="text-[10px] text-[#A39E93]">Nacidos fuera del país:</span>
+                      <button
+                        type="button"
+                        onClick={openForeignPresidents}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-[#D4AF37] bg-[#C5A059]/15 hover:bg-[#C5A059]/25 rounded transition-colors"
+                      >
+                        <Globe2 className="w-3 h-3" />
+                        <span>Exterior ({foreignPresidents.length})</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Submenú Colapsable de Polígonos Territoriales y Mapas Antiguos */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTerritorialSublayers((prev) => !prev)}
+                  aria-expanded={showTerritorialSublayers}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg border border-[#C5A059]/20 bg-[#0D0F12]/50 hover:border-[#C5A059]/45 text-[11px] font-medium text-[#C5A059] transition-colors"
+                >
+                  <span>Polígonos Territoriales ({territorialLayers.filter((l) => l.visible).length})</span>
+                  {showTerritorialSublayers ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+
+                {showTerritorialSublayers && (
+                  <div className="mt-1.5 space-y-1.5 pl-1">
+                    {territorialLayers.map((layer) => {
+                      const opacityPct = Math.round(layer.opacidad * 100);
+                      return (
+                        <div
+                          key={layer.id}
+                          className="rounded-lg border border-[#C5A059]/20 bg-[#0D0F12]/65 p-2 space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <label className="flex items-center gap-2 min-w-0 cursor-pointer flex-1">
+                              <input
+                                type="checkbox"
+                                checked={layer.visible}
+                                onChange={() => toggleLayer(layer.id)}
+                                className="sr-only"
+                              />
+                              <span
+                                className={`w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0 ${
+                                  layer.visible
+                                    ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0D0F12]'
+                                    : 'bg-[#0D0F12] border-[#C5A059]/40'
+                                }`}
+                              >
+                                {layer.visible && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </span>
+                              <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: layer.colorIndicador ?? '#C5A059' }}
+                              />
+                              <span className="text-[11px] font-medium text-[#F4F1EA] truncate">
+                                {layer.nombre}
+                              </span>
+                            </label>
+                            {layer.visible && layer.focusBounds && (
+                              <button
+                                type="button"
+                                onClick={() => focusLayer(layer)}
+                                className="text-[10px] text-[#D4AF37] hover:underline shrink-0"
+                              >
+                                Enfocar
+                              </button>
+                            )}
+                          </div>
+
+                          {layer.visible && (
+                            <div className="flex items-center gap-2 pt-1 border-t border-[#C5A059]/10">
+                              <span className="text-[10px] text-[#A39E93]">Opacidad</span>
+                              <input
+                                type="range"
+                                min={10}
+                                max={100}
+                                step={5}
+                                value={opacityPct}
+                                onChange={(e) =>
+                                  changeLayerOpacity(layer.id, Number(e.target.value) / 100)
+                                }
+                                className="gis-slider flex-1"
+                              />
+                              <span className="font-mono-tabular text-[10px] text-[#D4AF37] w-7 text-right">
+                                {opacityPct}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setVintageGalleryOpen(true)}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C5A059]/30 bg-[#0D0F12]/80 hover:border-[#D4AF37] text-[11px] font-medium text-[#D4AF37] transition-colors"
+                    >
+                      <ScrollText className="w-3.5 h-3.5" />
+                      <span>Galería de Mapas Antiguos</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <hr className="border-[#C5A059]/20" />
+
+          {/* 2. EXPLORAR: 5 GRANDES PERÍODOS HISTÓRICOS */}
+          <section aria-labelledby="drawer-regimes-heading" className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2
+                id="drawer-regimes-heading"
+                className="text-[11px] uppercase tracking-[0.14em] font-semibold text-[#C5A059]"
+              >
+                5 Grandes Períodos
+              </h2>
+              {onOpenExploreModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenExploreModal()}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#D4AF37] hover:underline"
+                >
+                  <BookOpen className="w-3 h-3" />
+                  <span>Enciclopedia</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePeriodFilter(null);
+                  setRegimeFilter('all');
+                  setMaxYear(2026);
+                }}
+                aria-pressed={activePeriodFilter === null && regimeFilter === 'all'}
+                className={`w-full px-3 py-1.5 text-left text-xs font-medium rounded-lg border transition-colors ${
+                  activePeriodFilter === null && regimeFilter === 'all'
+                    ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/70 font-semibold'
+                    : 'bg-[#0D0F12]/70 text-[#F4F1EA]/85 border-[#C5A059]/20 hover:border-[#C5A059]/50'
+                }`}
+              >
+                Todas las épocas (1492–2026)
+              </button>
+
+              {HISTORICAL_ENCYCLOPEDIA_PERIODS.map((period) => {
+                const active = activePeriodFilter === period.id;
+                return (
+                  <div
+                    key={period.id}
+                    className={`rounded-lg border transition-colors flex items-center justify-between gap-1 p-1.5 ${
+                      active
+                        ? 'bg-[#161920] border-[#D4AF37]/80 shadow-sm'
+                        : 'bg-[#0D0F12]/70 border-[#C5A059]/20 hover:border-[#C5A059]/50'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => explorePeriodOnMap(period)}
+                      className="flex-1 min-w-0 text-left flex items-center gap-2 px-1.5 py-0.5"
+                      title={`Filtrar mapa por ${period.titulo}`}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: period.color }}
+                      />
+                      <span className="text-xs font-medium text-[#F4F1EA] truncate">
+                        {period.titulo}
+                      </span>
+                    </button>
+
+                    {onOpenExploreModal && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenExploreModal(period.id)}
+                        title={`Leer ficha enciclopédica de ${period.titulo}`}
+                        className="px-2 py-1 rounded bg-[#0D0F12] hover:bg-[#D4AF37] text-[#D4AF37] hover:text-[#0D0F12] border border-[#C5A059]/30 text-[10px] font-semibold shrink-0 transition-colors"
+                      >
+                        Leer
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -195,17 +550,16 @@ export default function SidebarGIS() {
 
           <hr className="border-[#C5A059]/20" />
 
-          {/* Category Filters */}
-          <section aria-labelledby="categories-heading" className="space-y-2">
+          {/* 3. CATEGORÍAS (Política, Batalla, Fundación, Derechos) */}
+          <section aria-labelledby="drawer-categories-heading" className="space-y-2">
             <div className="flex items-center justify-between">
               <h2
-                id="categories-heading"
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#C5A059]"
+                id="drawer-categories-heading"
+                className="text-[11px] uppercase tracking-[0.14em] font-semibold text-[#C5A059]"
               >
-                <Filter className="w-3.5 h-3.5" />
-                <span>Categorías históricas</span>
+                Categorías
               </h2>
-              <span className="font-mono-tabular text-[11px] text-[#A39E93]">
+              <span className="font-mono-tabular text-[10px] text-[#A39E93]">
                 {filteredEvents.length} visibles
               </span>
             </div>
@@ -213,260 +567,31 @@ export default function SidebarGIS() {
             <div className="grid grid-cols-2 gap-1.5">
               {ALL_CATEGORIES.map((cat) => {
                 const active = selectedCategories.includes(cat);
+                const meta = CATEGORY_META[cat];
                 return (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => toggleCategory(cat)}
                     aria-pressed={active}
-                    className={`flex items-center gap-2 px-2.5 py-2 text-[11px] font-medium rounded-lg border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
+                    className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
                       active
-                        ? 'bg-[#0D0F12] text-[#F4F1EA] border-[#D4AF37]/50'
-                        : 'bg-[#0D0F12]/40 text-[#A39E93] border-[#C5A059]/15'
+                        ? 'bg-[#0D0F12]/90 text-[#F4F1EA] border-[#D4AF37]/50'
+                        : 'bg-[#0D0F12]/40 text-[#A39E93] border-[#C5A059]/15 opacity-75'
                     }`}
                   >
                     <span
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{
-                        backgroundColor: active ? CATEGORY_COLOR[cat] : '#52525B',
+                        backgroundColor: active ? meta.color : '#52525B',
                       }}
                     />
-                    <span className="truncate">{cat.split('/')[0]}</span>
+                    <span className="truncate">{meta.shortLabel}</span>
                   </button>
                 );
               })}
             </div>
           </section>
-
-          <hr className="border-[#C5A059]/20" />
-
-          {/* Base Map Selector */}
-          <section aria-labelledby="basemap-heading">
-            <div className="flex items-center justify-between mb-2">
-              <h2 id="basemap-heading" className="text-xs font-semibold text-[#C5A059]">
-                Mapa base topográfico e histórico
-              </h2>
-              <span className="font-mono-tabular text-[11px] text-[#A39E93]">EPSG:3857</span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1.5">
-              {BASE_MAPS.map((bm) => {
-                const active = bm.id === activeBaseMapId;
-                return (
-                  <button
-                    key={bm.id}
-                    type="button"
-                    onClick={() => setActiveBaseMapId(bm.id)}
-                    aria-pressed={active}
-                    className={`w-full flex items-center gap-3 px-3 py-2 min-h-[42px] rounded-lg border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
-                      active
-                        ? 'bg-[#1D3557] text-[#F4F1EA] border-[#D4AF37]/70'
-                        : 'bg-[#0D0F12]/70 text-[#F4F1EA] border-[#C5A059]/20 hover:border-[#C5A059]/45'
-                    }`}
-                  >
-                    <BaseMapIcon id={bm.id} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium leading-tight whitespace-nowrap truncate">
-                        {bm.nombre}
-                      </div>
-                      <div
-                        className={`text-[10px] leading-tight mt-0.5 truncate ${
-                          active ? 'text-[#F4F1EA]/85' : 'text-[#A39E93]'
-                        }`}
-                      >
-                        {bm.subtitulo}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Relief Intensity Slider (0.3 – 1.0 for World_Shaded_Relief) */}
-            <div className="mt-3 p-3 rounded-lg border border-[#C5A059]/25 bg-[#0D0F12]/70 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <label
-                  htmlFor="relief-intensity-slider"
-                  className="text-[11px] font-semibold text-[#F4F1EA]"
-                >
-                  Intensidad de Relieve Topográfico
-                </label>
-                <span className="font-mono-tabular text-[11px] font-semibold text-[#D4AF37]">
-                  {Math.round(reliefIntensity * 100)}%
-                </span>
-              </div>
-              <input
-                id="relief-intensity-slider"
-                type="range"
-                min={0.3}
-                max={1.0}
-                step={0.05}
-                value={reliefIntensity}
-                onChange={(e) => setReliefIntensity(Number(e.target.value))}
-                disabled={
-                  activeBaseMapId !== 'realistic_relief' &&
-                  activeBaseMapId !== 'physical_historical'
-                }
-                className="gis-slider w-full disabled:opacity-45"
-              />
-              <div className="text-[10px] text-[#A39E93] leading-snug">
-                {activeBaseMapId === 'realistic_relief' || activeBaseMapId === 'physical_historical'
-                  ? 'Modula la orografía 3D de la Cordillera Central y Sierra de Bahoruco.'
-                  : 'Disponible en los modos Relieve Topográfico o Terreno Físico Histórico.'}
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-[#C5A059]/20" />
-
-          {/* Thematic GIS Layer Manager */}
-          <section aria-labelledby="layers-heading" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 id="layers-heading" className="text-xs font-semibold text-[#C5A059]">
-                Gestor de capas GIS
-              </h2>
-              <span className="font-mono-tabular text-[11px] text-[#A39E93]">
-                {layers.filter((l) => l.visible).length}/{layers.length} activas
-              </span>
-            </div>
-
-            {GROUP_LABELS.map((group) => {
-              const groupLayers = layers.filter((l) => l.grupo === group.key);
-              if (groupLayers.length === 0) return null;
-
-              return (
-                <div key={group.key} className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-[#F4F1EA]/90">
-                    <GroupIcon group={group.key} />
-                    <span>{group.titulo}</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {groupLayers.map((layer) => {
-                      const opacityPct = Math.round(layer.opacidad * 100);
-                      return (
-                        <div
-                          key={layer.id}
-                          className={`rounded-lg border p-3 transition-colors ${
-                            layer.visible
-                              ? 'bg-[#0D0F12]/85 border-[#C5A059]/35'
-                              : 'bg-[#0D0F12]/40 border-[#C5A059]/15'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-sm shrink-0"
-                                  style={{ backgroundColor: layer.colorIndicador ?? '#C5A059' }}
-                                  aria-hidden="true"
-                                />
-                                <span className="text-xs font-semibold text-[#F4F1EA] leading-snug">
-                                  {layer.nombre}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-[#A39E93] mt-1 leading-relaxed">
-                                {layer.descripcion}
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={layer.visible}
-                              aria-label={`Alternar capa ${layer.nombre}`}
-                              onClick={() => toggleLayer(layer.id)}
-                              className={`min-w-[38px] min-h-[38px] flex items-center justify-center rounded-md border transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
-                                layer.visible
-                                  ? 'bg-[#D4AF37]/15 border-[#D4AF37]/45 text-[#D4AF37]'
-                                  : 'bg-transparent border-[#C5A059]/20 text-[#A39E93] hover:text-[#F4F1EA]'
-                              }`}
-                            >
-                              {layer.visible ? (
-                                <Eye className="w-4 h-4" />
-                              ) : (
-                                <EyeOff className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-
-                          {layer.visible && (
-                            <div className="mt-2.5 pt-2 border-t border-[#C5A059]/15 space-y-2">
-                              <div className="flex items-center justify-between gap-3">
-                                <label
-                                  htmlFor={`opacity-${layer.id}`}
-                                  className="text-[11px] font-medium text-[#A39E93] whitespace-nowrap"
-                                >
-                                  Opacidad
-                                </label>
-                                <input
-                                  id={`opacity-${layer.id}`}
-                                  type="range"
-                                  min={0}
-                                  max={100}
-                                  step={5}
-                                  value={opacityPct}
-                                  onChange={(e) =>
-                                    changeLayerOpacity(layer.id, Number(e.target.value) / 100)
-                                  }
-                                  className="gis-slider flex-1"
-                                />
-                                <span className="font-mono-tabular text-[11px] font-medium text-[#D4AF37] w-9 text-right">
-                                  {opacityPct}%
-                                </span>
-                              </div>
-
-                              {layer.id === 'presidentes_provincia' && (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[11px] text-[#A39E93]">
-                                    Clic en provincia o insignia
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={openForeignPresidents}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#D4AF37] bg-[#C5A059]/10 hover:bg-[#C5A059]/20 border border-[#C5A059]/25 rounded-md transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-                                  >
-                                    <Globe2 className="w-3.5 h-3.5 shrink-0" />
-                                    <span>Exterior ({foreignPresidents.length})</span>
-                                  </button>
-                                </div>
-                              )}
-
-                              {layer.focusBounds && (
-                                <div className="flex justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={() => focusLayer(layer)}
-                                    className="px-3 py-1.5 text-xs font-medium text-[#D4AF37] bg-[#C5A059]/10 hover:bg-[#C5A059]/20 border border-[#C5A059]/25 rounded-md transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-                                  >
-                                    Enfocar área del mapa
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-        </div>
-
-        {/* Clean Sidebar Footer */}
-        <div className="px-4 py-3 border-t border-[#C5A059]/20 bg-[#0D0F12]/80 flex items-center justify-between gap-3">
-          <div className="text-[11px] text-[#A39E93] font-mono-tabular truncate">
-            {allEventsSorted.length} hechos · {allPresidents.length} pres. · {allRoutesCount} rutas
-          </div>
-          <button
-            type="button"
-            onClick={resetView}
-            className="px-3 py-1.5 text-xs font-medium text-[#D4AF37] bg-[#C5A059]/10 hover:bg-[#C5A059]/20 border border-[#C5A059]/25 rounded-md transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-          >
-            Centrar isla
-          </button>
         </div>
       </aside>
     </>

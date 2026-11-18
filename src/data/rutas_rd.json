@@ -1,128 +1,66 @@
 {
   "type": "FeatureCollection",
-  "name": "rutas_rd",
+  "name": "rutas_historicas_rd",
   "features": [
     {
       "type": "Feature",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [-72.21, 19.76],
-          [-72.016, 19.683],
-          [-71.75, 19.78],
-          [-71.6458, 19.865],
-          [-71.22, 19.91],
-          [-71.0792, 19.895],
-          [-70.691, 19.798],
-          [-70.08, 19.65],
-          [-69.66, 19.34],
-          [-69.33, 19.205],
-          [-69.18, 19.215]
+          [-70.1353, 18.4686],
+          [-70.5289, 19.2228],
+          [-71.2358, 18.8317],
+          [-71.4167, 18.1667]
         ]
       },
       "properties": {
-        "id": "ruta-colon-norte-1492",
-        "titulo": "Primer Viaje de Cristóbal Colón (Costa Norte)",
+        "id": "ruta-resistencia-taina-1492",
+        "titulo": "Ruta de la Resistencia Taína y Conquista (1492–1533)",
         "anio_inicio": 1492,
-        "anio_fin": 1493,
-        "fechas": "Diciembre 1492 – Enero 1493",
-        "tipo_ruta": "maritima",
-        "tipo_ruta_etiqueta": "Expedición Marítima",
-        "epoca": "Descubrimiento",
-        "color": "#1d4ed8",
-        "descripcion": "Recorrido costero de las carabelas La Niña y La Pinta desde el naufragio de la Santa María en La Navidad hasta el Golfo de las Flechas en Samaná, bordeando Monte Cristi, Puerto Plata (Monte de Plata) y Cabo Cabrón antes de zarpar de regreso a Europa.",
-        "protagonistas": ["Cristóbal Colón", "Martín Alonso Pinzón", "Vicente Yáñez Pinzón"],
-        "hitos": [
-          {
-            "orden": 1,
-            "nombre": "Bahía de Caracol / Fuerte de La Navidad",
-            "fecha": "25 de diciembre de 1492",
-            "coordenadas": [-72.016, 19.683],
-            "descripcion": "Encallamiento de la nao Santa María y construcción del primer asentamiento europeo provisional."
-          },
-          {
-            "orden": 2,
-            "nombre": "El Morro de Monte Cristi",
-            "fecha": "4 de enero de 1493",
-            "coordenadas": [-71.6458, 19.865],
-            "descripcion": "Avistamiento del promontorio calizo bautizado como Monte Cristi y encuentro con Martín Alonso Pinzón."
-          },
-          {
-            "orden": 3,
-            "nombre": "Monte de Plata (Puerto Plata)",
-            "fecha": "11 de enero de 1493",
-            "coordenadas": [-70.691, 19.798],
-            "descripcion": "Colón nombra la loma Isabel de Torres como Monte de Plata por la bruma brillante en su cima."
-          },
-          {
-            "orden": 4,
-            "nombre": "Bahía y Golfo de las Flechas (Samaná)",
-            "fecha": "13–16 de enero de 1493",
-            "coordenadas": [-69.18, 19.215],
-            "descripcion": "Primer enfrentamiento armado con indígenas ciguayos antes de emprender el tornaviaje a España."
-          }
-        ],
-        "fuente_bibliografica": "Diario de Navegación de Cristóbal Colón · Fray Bartolomé de las Casas"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [-71.0792, 19.8878],
-          [-70.96, 19.79],
-          [-70.855, 19.712],
-          [-70.75, 19.56],
-          [-70.68, 19.45],
-          [-70.525, 19.395],
-          [-70.66, 19.31],
-          [-70.796, 19.235]
-        ]
-      },
-      "properties": {
-        "id": "ruta-paso-hidalgos-1494",
-        "titulo": "Ruta del Paso de los Hidalgos (Hacia el Cibao)",
-        "anio_inicio": 1494,
-        "anio_fin": 1494,
-        "fechas": "12 – 17 de marzo de 1494",
+        "anio_fin": 1533,
+        "fechas": "1492 – 1533",
         "tipo_ruta": "terrestre_expedicion",
-        "tipo_ruta_etiqueta": "Expedición Terrestre",
+        "tipo_ruta_etiqueta": "Resistencia Indígena y Cacicazgos",
         "epoca": "Descubrimiento",
-        "color": "#b45309",
-        "descripcion": "Primera gran marcha militar española al interior de La Española. Partiendo de La Isabela, los hidalgos abrieron trocha a través de la Cordillera Septentrional por el Paso de los Hidalgos hasta contemplar el Valle del Cibao (Vega Real) y erigir la Fortaleza de Santo Tomás en Jánico.",
-        "protagonistas": ["Cristóbal Colón", "Alonso de Ojeda", "Pedro Margarit"],
+        "color": "#D97706",
+        "descripcion": "Corredor histórico que enlaza los principales santuarios rupestres taínos, el Valle de la Vega Real, la gran plaza ceremonial de Anacaona en San Juan de la Maguana y el bastión montañoso donde el cacique Enriquillo lideró la rebelión victoriosa de Bahoruco (1519–1533).",
+        "protagonistas": [
+          "Cacique Enriquillo (Guarocuya)",
+          "Cacica Anacaona",
+          "Cacique Caonabo",
+          "Guacanagarix"
+        ],
         "hitos": [
           {
             "orden": 1,
-            "nombre": "Villa de La Isabela",
-            "fecha": "12 de marzo de 1494",
-            "coordenadas": [-71.0792, 19.8878],
-            "descripcion": "Partida de la columna armada con caballería, infantería y artesanos desde la primera ciudad europea."
+            "nombre": "Cuevas del Pomier (Arte Rupestre Taíno)",
+            "fecha": "Pre-1492",
+            "coordenadas": [-70.1353, 18.4686],
+            "descripcion": "Santuario cavernario con más de 4,000 pictografías y petroglifos rituales taínos en San Cristóbal."
           },
           {
             "orden": 2,
-            "nombre": "Puerto y Paso de los Hidalgos",
-            "fecha": "13 de marzo de 1494",
-            "coordenadas": [-70.855, 19.712],
-            "descripcion": "Cruce de la Cordillera Septentrional; primer sendero abierto por ingenieros e hidalgos castellanos."
+            "nombre": "La Vega Real / Santo Cerro (Maguá)",
+            "fecha": "Marzo de 1495",
+            "coordenadas": [-70.5289, 19.2228],
+            "descripcion": "Escenario del gran enfrentamiento en el Valle de la Vega Real entre la confederación indígena y los conquistadores."
           },
           {
             "orden": 3,
-            "nombre": "Mirador de la Vega Real (Santo Cerro)",
-            "fecha": "15 de marzo de 1494",
-            "coordenadas": [-70.525, 19.395],
-            "descripcion": "Avistamiento de la fértil llanura del Cibao y cruce del río Yaque del Norte."
+            "nombre": "Corral de los Indios (Plaza Ceremonial de Anacaona)",
+            "fecha": "1492 – 1503",
+            "coordenadas": [-71.2358, 18.8317],
+            "descripcion": "El mayor batey ceremonial circular de las Antillas, centro político y espiritual de Caonabo y Anacaona."
           },
           {
             "orden": 4,
-            "nombre": "Fortaleza de Santo Tomás (Jánico)",
-            "fecha": "17 de marzo de 1494",
-            "coordenadas": [-70.796, 19.235],
-            "descripcion": "Construcción del primer fuerte en la Cordillera Central para custodiar las minas de oro del Cibao."
+            "nombre": "Sierra de Bahoruco (Rebelión de Enriquillo)",
+            "fecha": "1519 – 1533",
+            "coordenadas": [-71.4167, 18.1667],
+            "descripcion": "Bastión montañoso de la guerrilla invicta del cacique Enriquillo que culminó en el primer tratado de paz indígena de América."
           }
         ],
-        "fuente_bibliografica": "Fray Bartolomé de las Casas · Historia de las Indias · Emilio Rodríguez Demorizi"
+        "fuente_bibliografica": "Fray Bartolomé de las Casas, Historia de las Indias; Museo del Hombre Dominicano."
       }
     },
     {
@@ -130,126 +68,62 @@
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [-71.6458, 19.8481],
-          [-71.0792, 19.8878],
-          [-70.692, 19.7934],
-          [-70.51, 19.48],
-          [-70.52, 19.22],
-          [-70.41, 19.04],
-          [-70.14, 18.89],
-          [-69.786, 18.807],
-          [-69.636, 18.751]
-        ]
-      },
-      "properties": {
-        "id": "ruta-devastaciones-osorio-1605",
-        "titulo": "Ruta de las Devastaciones de Osorio",
-        "anio_inicio": 1605,
-        "anio_fin": 1606,
-        "fechas": "Octubre 1605 – Junio 1606",
-        "tipo_ruta": "economica_migratoria",
-        "tipo_ruta_etiqueta": "Traslado Poblacional Forzoso",
-        "epoca": "Colonia",
-        "color": "#b45309",
-        "descripcion": "Corredor interior por el cual fueron reubicados los habitantes y ganados de las villas despobladas e incendiadas de Monte Cristi y Puerto Plata hacia las nuevas fundaciones de Monte Plata y Bayaguana, siguiendo pasos del Cibao y la Sierra de Yamasá.",
-        "protagonistas": ["Antonio de Osorio", "Cabildos de Monte Cristi y Puerto Plata"],
-        "hitos": [
-          {
-            "orden": 1,
-            "nombre": "San Fernando de Monte Cristi (Incendiada)",
-            "fecha": "Octubre de 1605",
-            "coordenadas": [-71.6458, 19.8481],
-            "descripcion": "Inicio de las demoliciones en la Banda Norte para cortar el contrabando con corsarios."
-          },
-          {
-            "orden": 2,
-            "nombre": "San Felipe de Puerto Plata (Evacuada)",
-            "fecha": "Diciembre de 1605",
-            "coordenadas": [-70.692, 19.7934],
-            "descripcion": "Concentración de vecinos y hatos ganaderos rumbo al corredor central del Cibao."
-          },
-          {
-            "orden": 3,
-            "nombre": "Paso de Cotuí y Sierra de Yamasá",
-            "fecha": "Febrero de 1606",
-            "coordenadas": [-70.14, 18.89],
-            "descripcion": "Tránsito forzoso de familias y rebaños hacia las sabanas interiores cercanas a Santo Domingo."
-          },
-          {
-            "orden": 4,
-            "nombre": "Monte Plata (Nueva Fundación)",
-            "fecha": "Abril de 1606",
-            "coordenadas": [-69.786, 18.807],
-            "descripcion": "Asentamiento de los desplazados de Monte Cristi y Puerto Plata en un único poblado interior."
-          },
-          {
-            "orden": 5,
-            "nombre": "Bayaguana (Nueva Fundación)",
-            "fecha": "Junio de 1606",
-            "coordenadas": [-69.636, 18.751],
-            "descripcion": "Reubicación final de los antiguos pobladores de Bayajá y La Yaguana al noreste de la capital."
-          }
-        ],
-        "fuente_bibliografica": "Archivo General de Indias · Relaciones de Osorio (Ed. AGN)"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [-69.8906, 18.4724],
-          [-70.1066, 18.4167],
-          [-70.331, 18.279],
-          [-70.525, 18.352],
-          [-70.7349, 18.4532],
-          [-70.855, 18.385],
-          [-70.92, 18.49]
+          [-69.8931, 18.4731],
+          [-70.1095, 18.4165],
+          [-70.7347, 18.4539],
+          [-70.7042, 19.4517]
         ]
       },
       "properties": {
         "id": "ruta-independencia-1844",
-        "titulo": "Campaña Militar del Sur (Independencia 1844)",
+        "titulo": "Ruta de la Independencia Nacional (1844)",
         "anio_inicio": 1844,
-        "anio_fin": 1845,
-        "fechas": "Marzo 1844 – Abril 1844",
+        "anio_fin": 1844,
+        "fechas": "27 de febrero – 30 de marzo de 1844",
         "tipo_ruta": "militar",
-        "tipo_ruta_etiqueta": "Campaña Militar",
+        "tipo_ruta_etiqueta": "Campaña de Independencia Nacional",
         "epoca": "Independencia",
-        "color": "#dc2626",
-        "descripcion": "Eje estratégico del Ejército Expedicionario del Sur desde Santo Domingo pasando por San Cristóbal, Baní y el río Ocoa hasta las trincheras de Azua (Batalla del 19 de Marzo), y el repliegue táctico hacia Sabana Buey y El Memiso para frenar la ofensiva haitiana.",
-        "protagonistas": ["Pedro Santana", "Antonio Duvergé", "Matías Ramón Mella", "Juan Pablo Duarte"],
+        "color": "#3B82F6",
+        "descripcion": "Eje estratégico que conecta la proclamación de la República Dominicana en la Puerta del Conde (Santo Domingo) el 27 de febrero de 1844 con la sede constituyente de San Cristóbal y los dos grandes campos de batalla que consolidaron la soberanía nacional: Azua (19 de Marzo) y Santiago (30 de Marzo).",
+        "protagonistas": [
+          "Juan Pablo Duarte",
+          "Francisco del Rosario Sánchez",
+          "Matías Ramón Mella",
+          "Antonio Duvergé",
+          "José María Imbert",
+          "Fernando Valerio"
+        ],
         "hitos": [
           {
             "orden": 1,
-            "nombre": "Santo Domingo (Cuartel General)",
-            "fecha": "7 de marzo de 1844",
-            "coordenadas": [-69.8906, 18.4724],
-            "descripcion": "Movilización del Ejército Expedicionario tras la proclamación de independencia en la Puerta del Conde."
+            "nombre": "Puerta del Conde / Altar de la Patria (Santo Domingo)",
+            "fecha": "27 de febrero de 1844",
+            "coordenadas": [-69.8931, 18.4731],
+            "descripcion": "Trabucazo de Mella e izamiento de la primera Bandera Dominicana por Francisco del Rosario Sánchez."
           },
           {
             "orden": 2,
-            "nombre": "Baní (Línea de Abastecimiento)",
-            "fecha": "11 de marzo de 1844",
-            "coordenadas": [-70.331, 18.279],
-            "descripcion": "Concentración de milicias del Sur y preparación de la vanguardia rumbo al río Ocoa."
+            "nombre": "San Cristóbal (Frente Sur y Primera Constitución)",
+            "fecha": "Marzo – Noviembre de 1844",
+            "coordenadas": [-70.1095, 18.4165],
+            "descripcion": "Movilización de las tropas sureñas y sede del Congreso Constituyente del 6 de noviembre de 1844."
           },
           {
             "orden": 3,
-            "nombre": "Azua de Compostela (Batalla del 19 de Marzo)",
+            "nombre": "Batalla del 19 de Marzo (Azua)",
             "fecha": "19 de marzo de 1844",
-            "coordenadas": [-70.7349, 18.4532],
-            "descripcion": "Victoria decisiva de la artillería y macheteros dominicanos frente a las columnas de Charles Hérard."
+            "coordenadas": [-70.7347, 18.4539],
+            "descripcion": "Primera gran victoria defensiva del Ejército del Sur bajo el mando de Pedro Santana, Antonio Duvergé y Francisco Soñé."
           },
           {
             "orden": 4,
-            "nombre": "El Memiso (Desfiladero de la Sierra)",
-            "fecha": "13 de abril de 1844",
-            "coordenadas": [-70.92, 18.49],
-            "descripcion": "Emboscada victoriosa de Antonio Duvergé en los pasos montañosos que selló la defensa del Sur."
+            "nombre": "Batalla del 30 de Marzo (Santiago de los Caballeros)",
+            "fecha": "30 de marzo de 1844",
+            "coordenadas": [-70.7042, 19.4517],
+            "descripcion": "Triunfo decisivo del Ejército del Norte en los fuertes Dios, Patria y Libertad con José María Imbert, Fernando Valerio y Juana Saltitopa."
           }
         ],
-        "fuente_bibliografica": "Archivo General de la Nación · Documentos de la Guerra de Independencia"
+        "fuente_bibliografica": "Emilio Rodríguez Demorizi, Guerra Dominico-Haitiana; Archivo General de la Nación."
       }
     },
     {
@@ -257,67 +131,61 @@
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [-71.6744, 19.4442],
-          [-71.341, 19.478],
-          [-71.158, 19.662],
-          [-70.7061, 19.4508],
-          [-70.526, 19.393],
-          [-70.529, 19.222],
-          [-70.153, 19.054],
-          [-69.98, 18.78],
-          [-69.8872, 18.4754]
+          [-71.6853, 19.4319],
+          [-71.3419, 19.4775],
+          [-70.7031, 19.4492],
+          [-70.6884, 19.7934]
         ]
       },
       "properties": {
         "id": "ruta-restauracion-1863",
-        "titulo": "Ruta de la Guerra de la Restauración",
+        "titulo": "Ruta de la Guerra de la Restauración (1863–1865)",
         "anio_inicio": 1863,
         "anio_fin": 1865,
-        "fechas": "Agosto 1863 – Julio 1865",
+        "fechas": "16 de agosto de 1863 – julio de 1865",
         "tipo_ruta": "militar",
-        "tipo_ruta_etiqueta": "Campaña Militar",
+        "tipo_ruta_etiqueta": "Campaña Restauradora de la Línea Noroeste y el Cibao",
         "epoca": "Restauración",
-        "color": "#dc2626",
-        "descripcion": "Avance de las columnas restauradoras desde el Cerro de Capotillo por la Línea Noroeste (Sabaneta y Guayubín) hasta el Sitio e Incendio de Santiago, sede del Gobierno Provisional Restaurador, irradiando por el Cibao y los pasos de la Cordillera Central hacia la liberación de Santo Domingo.",
-        "protagonistas": ["Gregorio Luperón", "Santiago Rodríguez", "Gaspar Polanco", "Benito Monción"],
+        "color": "#E63946",
+        "descripcion": "Ruta de la insurrección patriótica iniciada con el Grito de Capotillo en Dajabón el 16 de agosto de 1863, su avance por Sabaneta y Guayubín, el sitio e incendio de Santiago en torno a la Fortaleza San Luis y el repliegue final de las fuerzas españolas hacia Puerto Plata hasta la restauración de la República en 1865.",
+        "protagonistas": [
+          "Santiago Rodríguez",
+          "Benito Monción",
+          "Gregorio Luperón",
+          "Gaspar Polanco",
+          "José Cabrera"
+        ],
         "hitos": [
           {
             "orden": 1,
-            "nombre": "Cerro de Capotillo (Grito de Restauración)",
+            "nombre": "Monumento al Grito de Capotillo (Dajabón)",
             "fecha": "16 de agosto de 1863",
-            "coordenadas": [-71.6744, 19.4442],
-            "descripcion": "Izamiento de la bandera tricolor por Santiago Rodríguez y Benito Monción; inicio de la guerra antianexionista."
+            "coordenadas": [-71.6853, 19.4319],
+            "descripcion": "Catorce patriotas cruzan la frontera e izan la bandera tricolor en el cerro de Capotillo dando inicio a la Restauración."
           },
           {
             "orden": 2,
-            "nombre": "Guayubín (Toma de la Línea Noroeste)",
-            "fecha": "18 de agosto de 1863",
-            "coordenadas": [-71.158, 19.662],
-            "descripcion": "Consolidación del frente noroeste y adhesión de las guarniciones del valle del Yaque."
+            "nombre": "Sabaneta y Guayubín (Línea Noroeste)",
+            "fecha": "17 – 20 de agosto de 1863",
+            "coordenadas": [-71.3419, 19.4775],
+            "descripcion": "Levantamiento general de las poblaciones de la Línea Noroeste en marcha hacia el valle del Cibao."
           },
           {
             "orden": 3,
-            "nombre": "Santiago de los Caballeros (Sitio e Incendio)",
-            "fecha": "6–14 de septiembre de 1863",
-            "coordenadas": [-70.7061, 19.4508],
-            "descripcion": "Batalla decisiva en la Fortaleza San Luis e instalación del Gobierno Provisional Restaurador."
+            "nombre": "Fortaleza San Luis (Sitio e Incendio de Santiago)",
+            "fecha": "6 – 14 de septiembre de 1863",
+            "coordenadas": [-70.7031, 19.4492],
+            "descripcion": "Asedio victorioso de las tropas restauradoras e instalación del Gobierno Provisorio Restaurador en Santiago."
           },
           {
             "orden": 4,
-            "nombre": "Paso de Piedra Blanca / Guanuma",
-            "fecha": "Diciembre de 1863",
-            "coordenadas": [-69.98, 18.78],
-            "descripcion": "Línea de guerra de guerrillas en los pasos montañosos del norte de la capital que desgastó al ejército español."
-          },
-          {
-            "orden": 5,
-            "nombre": "Santo Domingo (Reembarque Español)",
-            "fecha": "11 de julio de 1865",
-            "coordenadas": [-69.8872, 18.4754],
-            "descripcion": "Entrada triunfal de las tropas restauradoras tras la derogación de la Anexión a España."
+            "nombre": "Puerto Plata (Evacuación Española y Segunda República)",
+            "fecha": "Julio de 1865",
+            "coordenadas": [-70.6884, 19.7934],
+            "descripcion": "Embarque definitivo de las tropas anexionistas españolas y consolidación de la Segunda República."
           }
         ],
-        "fuente_bibliografica": "Gregorio Luperón · Notas Autobiográficas y Apuntes Históricos"
+        "fuente_bibliografica": "Gregorio Luperón, Notas Autobiográficas y Apuntes Históricos (1895)."
       }
     }
   ]

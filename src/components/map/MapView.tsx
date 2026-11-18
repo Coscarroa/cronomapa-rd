@@ -43,6 +43,7 @@ export interface FlyToTarget {
   bounds?: [[number, number], [number, number]];
   center?: [number, number];
   zoom?: number;
+  zoomDelta?: number;
   nonce: number;
 }
 
@@ -77,12 +78,22 @@ function MapCameraAndEvents({
   useEffect(() => {
     if (!map || typeof map.addListener !== 'function') return;
 
+    let rafId: number | null = null;
+    let pendingCoords: { lat: number; lng: number } | null = null;
     const rawListeners: Array<google.maps.MapsEventListener | undefined> = [];
+
     try {
       rawListeners.push(
         map.addListener('mousemove', (e: google.maps.MapMouseEvent) => {
-          if (e?.latLng) {
-            onCursorMoveRef.current(e.latLng.lat(), e.latLng.lng());
+          if (!e?.latLng) return;
+          pendingCoords = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+          if (rafId === null) {
+            rafId = window.requestAnimationFrame(() => {
+              rafId = null;
+              if (pendingCoords) {
+                onCursorMoveRef.current(pendingCoords.lat, pendingCoords.lng);
+              }
+            });
           }
         }),
         map.addListener('zoom_changed', () => {
@@ -99,6 +110,9 @@ function MapCameraAndEvents({
     );
 
     return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
       listeners.forEach((l) => l?.remove?.());
     };
   }, [map]);
@@ -106,7 +120,14 @@ function MapCameraAndEvents({
   useEffect(() => {
     if (!map || !flyToTarget) return;
     try {
-      if (flyToTarget.bounds && typeof map.fitBounds === 'function') {
+      if (typeof flyToTarget.zoomDelta === 'number' && typeof map.getZoom === 'function') {
+        const currentZoom = map.getZoom() ?? MAP_INITIAL_ZOOM;
+        const nextZoom = Math.max(
+          MAP_MIN_ZOOM,
+          Math.min(MAP_MAX_ZOOM, currentZoom + flyToTarget.zoomDelta),
+        );
+        map.setZoom?.(nextZoom);
+      } else if (flyToTarget.bounds && typeof map.fitBounds === 'function') {
         const [[south, west], [north, east]] = flyToTarget.bounds;
         map.fitBounds({ north, south, east, west }, 36);
       } else if (flyToTarget.center) {
@@ -747,6 +768,7 @@ export default function MapView() {
         mapId="DEMO_MAP_ID"
         colorScheme="DARK"
         gestureHandling="greedy"
+        zoomControl={false}
         mapTypeControl={false}
         streetViewControl={false}
         fullscreenControl={false}
